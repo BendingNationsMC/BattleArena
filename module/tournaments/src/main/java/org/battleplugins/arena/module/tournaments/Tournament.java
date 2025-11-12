@@ -267,6 +267,7 @@ public class Tournament {
                 LiveCompetitionMap map = dynamicMaps.get(i % dynamicMaps.size());
 
                 Competition<?> competition = map.createDynamicCompetition(this.arena);
+
                 this.arena.getPlugin().addCompetition(this.arena, competition);
 
                 allocatedCompetitions.add(competition);

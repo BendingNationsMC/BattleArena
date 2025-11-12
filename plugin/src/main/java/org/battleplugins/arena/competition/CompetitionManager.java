@@ -5,11 +5,13 @@ import org.battleplugins.arena.ArenaPlayer;
 import org.battleplugins.arena.BattleArena;
 import org.battleplugins.arena.competition.map.LiveCompetitionMap;
 import org.battleplugins.arena.competition.map.MapType;
+import org.battleplugins.arena.competition.map.options.Bounds;
 import org.battleplugins.arena.competition.phase.CompetitionPhaseType;
 import org.battleplugins.arena.competition.phase.phases.VictoryPhase;
 import org.battleplugins.arena.event.arena.ArenaCreateCompetitionEvent;
 import org.battleplugins.arena.event.arena.ArenaRemoveCompetitionEvent;
 import org.battleplugins.arena.event.player.ArenaLeaveEvent;
+import org.battleplugins.arena.util.BlockUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.Nullable;
@@ -17,14 +19,7 @@ import org.jetbrains.annotations.Nullable;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
 
@@ -235,19 +230,17 @@ public class CompetitionManager {
             return;
         }
 
-        Bukkit.unloadWorld(map.getWorld(), false);
-        if (!map.getWorld().getWorldFolder().exists()) {
+        if (map.getBounds() == null) {
+            this.plugin.info("No bounds found.");
             return;
         }
 
-        try {
-            try (Stream<Path> pathsToDelete = Files.walk(map.getWorld().getWorldFolder().toPath())) {
-                for (Path path : pathsToDelete.sorted(Comparator.reverseOrder()).toList()) {
-                    Files.deleteIfExists(path);
-                }
-            }
-        } catch (IOException e) {
-            this.plugin.error("Failed to delete dynamic map {}", map.getName(), e);
-        }
+        this.plugin.info("CLEARING DYNAMIC MAP");
+
+        BlockUtil.wipeRegionAsync(map.getWorld(), map.getBounds(), () -> {
+            BlockUtil.unticketRegion(map.getWorld(), map.getBounds(), BattleArena.getInstance());
+
+            BattleArena.getMapPool().release(map.getSlot());
+        });
     }
 }

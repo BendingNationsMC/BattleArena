@@ -4,6 +4,7 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.battleplugins.arena.Arena;
 import org.battleplugins.arena.ArenaPlayer;
+import org.battleplugins.arena.BattleArena;
 import org.battleplugins.arena.competition.Competition;
 import org.battleplugins.arena.competition.JoinResult;
 import org.battleplugins.arena.competition.LiveCompetition;
@@ -73,8 +74,8 @@ public class ArenaCommandExecutor extends BaseCommandExecutor {
     @ArenaCommand(commands = { "join", "j" }, description = "Join an arena.", permissionNode = "join.map")
     public void join(Player player, @Argument(name = "map") CompetitionMap map) {
         if (ArenaPlayer.getArenaPlayer(player) != null) {
-            Messages.ALREADY_IN_ARENA.send(player);
-            return;
+            ArenaPlayer arenaPlayer = ArenaPlayer.getArenaPlayer(player);
+            arenaPlayer.getCompetition().leave(player, ArenaLeaveEvent.Cause.COMMAND);
         }
 
         if (map == null) {
@@ -116,7 +117,8 @@ public class ArenaCommandExecutor extends BaseCommandExecutor {
         // If any player is already in an arena, deny them entry
         for (Player toJoin : players) {
             if (ArenaPlayer.getArenaPlayer(toJoin) != null) {
-                Messages.CANNOT_JOIN_ARENA_MEMBER_IN_ARENA.send(player);
+                ArenaPlayer arenaPlayer = ArenaPlayer.getArenaPlayer(player);
+                arenaPlayer.getCompetition().leave(player, ArenaLeaveEvent.Cause.COMMAND);
                 return;
             }
         }

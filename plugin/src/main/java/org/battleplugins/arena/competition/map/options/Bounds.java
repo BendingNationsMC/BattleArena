@@ -137,4 +137,8 @@ public class Bounds {
                 this.maxZ
         );
     }
+
+    public Bounds shift(int dx, int dy, int dz) {
+        return new Bounds(minX + dx, minY + dy, minZ + dz, maxX + dx, maxY + dy, maxZ + dz);
+    }
 }

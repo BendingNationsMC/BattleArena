@@ -2,6 +2,7 @@ package org.battleplugins.arena.competition;
 
 import org.battleplugins.arena.Arena;
 import org.battleplugins.arena.ArenaPlayer;
+import org.battleplugins.arena.BattleArena;
 import org.battleplugins.arena.competition.map.MapType;
 import org.battleplugins.arena.competition.phase.phases.VictoryPhase;
 import org.battleplugins.arena.event.ArenaEventHandler;
@@ -11,16 +12,21 @@ import org.battleplugins.arena.event.player.ArenaDeathEvent;
 import org.battleplugins.arena.event.player.ArenaKillEvent;
 import org.battleplugins.arena.event.player.ArenaLeaveEvent;
 import org.battleplugins.arena.event.player.ArenaRespawnEvent;
+import org.bukkit.Bukkit;
+import org.bukkit.attribute.Attribute;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Set;
 
 class CompetitionListener<T extends Competition<T>> implements ArenaListener, CompetitionLike<T> {
 
+    private static final Logger log = LoggerFactory.getLogger(CompetitionListener.class);
     private final LiveCompetition<T> competition;
 
     public CompetitionListener(LiveCompetition<T> competition) {
@@ -58,11 +64,15 @@ class CompetitionListener<T extends Competition<T>> implements ArenaListener, Co
         player.getCompetition().leave(player, ArenaLeaveEvent.Cause.DISCONNECT);
     }
 
-    @ArenaEventHandler(priority = EventPriority.HIGHEST)
+    @ArenaEventHandler(priority = EventPriority.MONITOR)
     public void onDeath(PlayerDeathEvent event, ArenaPlayer player) {
         if (event.isCancelled()) {
             return;
         }
+
+        player.getPlayer().setHealth(player.getPlayer().getMaxHealth());
+        player.getPlayer().setFireTicks(0);
+        player.getPlayer().spigot().respawn();
 
         // Call the death event
         this.competition.getArena().getEventManager().callEvent(new ArenaDeathEvent(player));
@@ -85,10 +95,9 @@ class CompetitionListener<T extends Competition<T>> implements ArenaListener, Co
         }
     }
 
-    @ArenaEventHandler(priority = EventPriority.HIGHEST)
+    @ArenaEventHandler(priority = EventPriority.MONITOR)
     public void onRespawn(PlayerRespawnEvent event, ArenaPlayer player) {
-        // Call the respawn event
-        this.competition.getArena().getEventManager().callEvent(new ArenaRespawnEvent(player));
+        this.competition.getArena().getEventManager().callEvent(new ArenaRespawnEvent(event, player));
     }
 
     @SuppressWarnings("unchecked")

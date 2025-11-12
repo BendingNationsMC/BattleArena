@@ -1,9 +1,11 @@
 [versions]
 bstats-bukkit = "3.0.2"
-paper-api = "1.20.4-R0.1-SNAPSHOT"
-worldedit = "7.2.9"
+paper-api     = "1.20.4-R0.1-SNAPSHOT"
+worldedit     = "7.2.9"
+fawe          = "2.14.0"
 
 [libraries]
-bstats-bukkit = { group = "org.bstats", name = "bstats-bukkit", version.ref = "bstats-bukkit" }
-paper-api = { group = "io.papermc.paper", name = "paper-api", version.ref = "paper-api" }
-worldedit = { group = "com.sk89q.worldedit", name = "worldedit-bukkit", version.ref = "worldedit" }
+bstats-bukkit = { group = "org.bstats",              name = "bstats-bukkit",           version.ref = "bstats-bukkit" }
+paper-api     = { group = "io.papermc.paper",        name = "paper-api",               version.ref = "paper-api" }
+worldedit     = { group = "com.sk89q.worldedit",     name = "worldedit-bukkit",        version.ref = "worldedit" }
+fawe-bukkit   = { group = "com.fastasyncworldedit",  name = "FastAsyncWorldEdit-Bukkit", version.ref = "fawe" }

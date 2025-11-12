@@ -81,6 +81,7 @@ public class TeleportAction extends EventAction {
             throw new IllegalArgumentException("Position not defined for location " + location);
         }
 
+
         player.teleport(pos.toLocation(arenaPlayer.getCompetition().getMap().getWorld()));
     }
 

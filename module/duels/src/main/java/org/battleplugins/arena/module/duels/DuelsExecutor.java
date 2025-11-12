@@ -30,18 +30,6 @@ public class DuelsExecutor implements SubCommandExecutor {
             return;
         }
 
-        ArenaPlayer arenaPlayer = ArenaPlayer.getArenaPlayer(player);
-        if (arenaPlayer != null) {
-            Messages.ALREADY_IN_ARENA.send(player);
-            return;
-        }
-
-        ArenaPlayer targetPlayer = ArenaPlayer.getArenaPlayer(target);
-        if (targetPlayer != null) {
-            Messages.ALREADY_IN_ARENA.send(player);
-            return;
-        }
-
         if (this.module.getDuelRequests().containsKey(player.getUniqueId())) {
             DuelsMessages.DUEL_REQUEST_ALREADY_SENT.send(player, this.parentCommand);
             return;
@@ -62,12 +50,6 @@ public class DuelsExecutor implements SubCommandExecutor {
 
     @ArenaCommand(commands = "duel", subCommands = "accept", description = "Accept a duel request.", permissionNode = "duel.accept")
     public void acceptDuel(Player player, Player target) {
-        ArenaPlayer arenaPlayer = ArenaPlayer.getArenaPlayer(player);
-        if (arenaPlayer != null) {
-            Messages.ALREADY_IN_ARENA.send(player);
-            return;
-        }
-
         UUID requestedId = this.module.getDuelRequests().get(target.getUniqueId());
         if (requestedId == null) {
             DuelsMessages.NO_DUEL_REQUESTS.send(player);

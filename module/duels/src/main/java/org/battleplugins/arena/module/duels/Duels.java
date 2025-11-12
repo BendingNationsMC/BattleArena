@@ -84,21 +84,8 @@ public class Duels implements ArenaModuleInitializer {
             return;
         }
 
-        // Non-team game - just join regularly and let game calculate team. Winner will be
-        // determined by the individual player who wins
-        if (arena.getTeams().isNonTeamGame()) {
-            competition.join(player, PlayerRole.PLAYING);
-            competition.join(target, PlayerRole.PLAYING);
-        } else {
-            ArenaTeam team1 = competition.getTeamManager().getTeams().iterator().next();
-            ArenaTeam team2 = competition.getTeamManager().getTeams().iterator().next();
-
-            competition.join(player, PlayerRole.PLAYING, team1);
-            competition.join(target, PlayerRole.PLAYING, team2);
-        }
-
-        // Force the game into the in-game state
-        competition.getPhaseManager().setPhase(CompetitionPhaseType.INGAME);
+        competition.join(player, PlayerRole.PLAYING);
+        competition.join(target, PlayerRole.PLAYING);
     }
 
     private LiveCompetition<?> findOrJoinCompetition(Arena arena) {

@@ -3,6 +3,7 @@ package org.battleplugins.arena.event.player;
 import org.battleplugins.arena.ArenaPlayer;
 import org.battleplugins.arena.event.EventTrigger;
 import org.bukkit.event.HandlerList;
+import org.bukkit.event.player.PlayerRespawnEvent;
 import org.jetbrains.annotations.NotNull;
 
 /**
@@ -11,9 +12,15 @@ import org.jetbrains.annotations.NotNull;
 @EventTrigger("on-respawn")
 public class ArenaRespawnEvent extends BukkitArenaPlayerEvent {
     private final static HandlerList HANDLERS = new HandlerList();
+    private final PlayerRespawnEvent event;
 
-    public ArenaRespawnEvent(ArenaPlayer player) {
+    public ArenaRespawnEvent(PlayerRespawnEvent event, ArenaPlayer player) {
         super(player.getArena(), player);
+        this.event = event;
+    }
+
+    public PlayerRespawnEvent getEvent() {
+        return event;
     }
 
     @NotNull

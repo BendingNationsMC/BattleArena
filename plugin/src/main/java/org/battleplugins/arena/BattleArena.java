@@ -23,12 +23,12 @@ import org.battleplugins.arena.module.ArenaModuleContainer;
 import org.battleplugins.arena.module.ArenaModuleLoader;
 import org.battleplugins.arena.module.ModuleLoadException;
 import org.battleplugins.arena.team.ArenaTeams;
-import org.battleplugins.arena.util.CommandInjector;
-import org.battleplugins.arena.util.LoggerHolder;
-import org.battleplugins.arena.util.Util;
-import org.battleplugins.arena.util.Version;
+import org.battleplugins.arena.util.*;
 import org.bstats.bukkit.Metrics;
 import org.bukkit.Bukkit;
+import org.bukkit.GameRule;
+import org.bukkit.World;
+import org.bukkit.WorldCreator;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.configuration.Configuration;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -84,6 +84,11 @@ public class BattleArena extends JavaPlugin implements LoggerHolder, BattleArena
     // fails to load and the additional debug information is required
     private boolean debugMode = true;
 
+    private static World INSTANCES_WORLD;
+    public static final int SLOT_SPACING = 2048; // 128 chunks apart
+    private static final SlotPool MAP_POOL = new SlotPool();
+
+
     @Override
     public void onLoad() {
         instance = this;
@@ -108,12 +113,26 @@ public class BattleArena extends JavaPlugin implements LoggerHolder, BattleArena
         new BattleArenaPreInitializeEvent(this).callEvent();
     }
 
+    public static World instancesWorld() { return INSTANCES_WORLD; }
+
     @Override
     public void onEnable() {
         Bukkit.getPluginManager().registerEvents(new BattleArenaListener(this), this);
 
         // Register default arenas
         this.registerArena(this, "Arena", Arena.class);
+
+        INSTANCES_WORLD = Bukkit.createWorld(
+                new WorldCreator("ba-instances")
+                        .generator(VoidChunkGenerator.INSTANCE)
+                        .environment(World.Environment.NORMAL)
+                        .generateStructures(false)
+                        .keepSpawnLoaded(net.kyori.adventure.util.TriState.FALSE)
+                        .type(org.bukkit.WorldType.NORMAL)
+        );
+        INSTANCES_WORLD.setAutoSave(false);
+        INSTANCES_WORLD.setGameRule(GameRule.DO_DAYLIGHT_CYCLE, false);
+        INSTANCES_WORLD.setGameRule(GameRule.DISABLE_RAIDS, true);
 
         // Enable the plugin
         this.enable();
@@ -786,6 +805,10 @@ public class BattleArena extends JavaPlugin implements LoggerHolder, BattleArena
                 this.getServer().getPluginManager().disablePlugin(this);
             }
         }
+    }
+
+    public static SlotPool getMapPool() {
+        return MAP_POOL;
     }
 
     /**

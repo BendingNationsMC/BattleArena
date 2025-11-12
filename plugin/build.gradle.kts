@@ -18,7 +18,7 @@ repositories {
 dependencies {
     implementation(libs.bstats.bukkit)
     compileOnlyApi(libs.paper.api)
-    compileOnly(libs.worldedit)
+    compileOnly(libs.fawe.bukkit)
 }
 
 java {

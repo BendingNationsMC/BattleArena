@@ -221,8 +221,7 @@ public class LiveCompetition<T extends Competition<T>> implements ArenaLike, Com
     public final void join(Collection<Player> players, PlayerRole role, @Nullable ArenaTeam team) {
         for (Player player : players) {
             if (this.arena.getPlugin().isInArena(player)) {
-                this.arena.getPlugin().error("Player {} is already in an arena! Please report this as it is a bug!", player.getName(), new IllegalStateException());
-                continue;
+                leave(player, ArenaLeaveEvent.Cause.COMMAND);
             }
 
             ArenaPlayer arenaPlayer = this.createPlayer(player);

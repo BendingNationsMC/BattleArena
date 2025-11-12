@@ -4,6 +4,7 @@ import org.battleplugins.arena.config.ArenaOption;
 import org.battleplugins.arena.util.PositionWithRotation;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -71,4 +72,20 @@ public class Spawns {
 
         return count;
     }
+
+    public Spawns shift(double dx, double dy, double dz) {
+        PositionWithRotation wait = this.waitroomSpawn == null ? null : this.waitroomSpawn.shifted(dx, dy, dz);
+        PositionWithRotation spec = this.spectatorSpawn == null ? null : this.spectatorSpawn.shifted(dx, dy, dz);
+
+        Map<String, TeamSpawns> shiftedTeams = null;
+        if (this.teamSpawns != null) {
+            shiftedTeams = new HashMap<>();
+            for (Map.Entry<String, TeamSpawns> e : this.teamSpawns.entrySet()) {
+                shiftedTeams.put(e.getKey(), e.getValue().shift(dx, dy, dz));
+            }
+        }
+
+        return new Spawns(wait, spec, shiftedTeams);
+    }
+
 }

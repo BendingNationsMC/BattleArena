@@ -30,6 +30,9 @@ public class BattleArenaConfig {
     @ArenaOption(name = "randomized-arena-join", description = "Whether players should be randomly placed in an Arena when joining without specifying a map.", required = true)
     private boolean randomizedArenaJoin;
 
+    @ArenaOption(name = "use-schematic", description = "Whether creating a dynamic arena should try to use a schematic if one is available first.", required = true)
+    private boolean schematicUsage;
+
     @ArenaOption(name = "disabled-modules", description = "Modules that are disabled by default.")
     private List<String> disabledModules;
 
@@ -69,6 +72,10 @@ public class BattleArenaConfig {
 
     public boolean isDebugMode() {
         return this.debugMode;
+    }
+
+    public boolean isSchematicUsage() {
+        return this.schematicUsage;
     }
 
     public static class Updater implements ConfigUpdater<BattleArenaConfig> {

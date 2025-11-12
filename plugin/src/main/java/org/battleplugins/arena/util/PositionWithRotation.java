@@ -57,4 +57,14 @@ public class PositionWithRotation {
     public Location toLocation(World world) {
         return new Location(world, this.x, this.y, this.z, this.yaw, this.pitch);
     }
+
+    public PositionWithRotation shifted(double dx, double dy, double dz) {
+        return new PositionWithRotation(
+                this.x + dx,
+                this.y + dy,
+                this.z + dz,
+                this.yaw,
+                this.pitch
+        );
+    }
  }

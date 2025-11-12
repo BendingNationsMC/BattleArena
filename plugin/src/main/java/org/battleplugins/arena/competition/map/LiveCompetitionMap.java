@@ -3,7 +3,8 @@ package org.battleplugins.arena.competition.map;
 import net.kyori.adventure.util.TriState;
 import org.battleplugins.arena.Arena;
 import org.battleplugins.arena.ArenaLike;
-import org.battleplugins.arena.competition.Competition;
+import org.battleplugins.arena.BattleArena;
+import org.battleplugins.arena.BattleArenaConfig;
 import org.battleplugins.arena.competition.LiveCompetition;
 import org.battleplugins.arena.competition.map.options.Bounds;
 import org.battleplugins.arena.competition.map.options.Spawns;
@@ -12,6 +13,7 @@ import org.battleplugins.arena.config.ArenaOption;
 import org.battleplugins.arena.config.ParseException;
 import org.battleplugins.arena.config.PostProcessable;
 import org.battleplugins.arena.util.BlockUtil;
+import org.battleplugins.arena.util.SlotPool;
 import org.battleplugins.arena.util.Util;
 import org.battleplugins.arena.util.VoidChunkGenerator;
 import org.bukkit.Bukkit;
@@ -56,6 +58,8 @@ public class LiveCompetitionMap implements ArenaLike, CompetitionMap, PostProces
 
     private World mapWorld;
     private World parentWorld;
+    private int offset;
+    private int slot;
 
     public LiveCompetitionMap() {
     }
@@ -243,26 +247,39 @@ public class LiveCompetitionMap implements ArenaLike, CompetitionMap, PostProces
             throw new IllegalStateException("Cannot create dynamic competition for non-dynamic map!");
         }
 
-        String worldName = "ba-dynamic-" + UUID.randomUUID();
-        World world = Bukkit.createWorld(WorldCreator.name(worldName)
-                .generator(VoidChunkGenerator.INSTANCE)
-                .environment(World.Environment.NORMAL)
-                .generateStructures(false)
-                .keepSpawnLoaded(TriState.FALSE)
-                .type(WorldType.NORMAL)
-        );
+        int slot = BattleArena.getMapPool().acquire();
+        int offsetX = slot * BattleArena.SLOT_SPACING;
+        World world = BattleArena.instancesWorld();
 
         if (world == null) {
             return null;
         }
+
         world.setGameRule(GameRule.DISABLE_RAIDS, true);
         world.setAutoSave(false);
 
-        if (!BlockUtil.copyToWorld(this.mapWorld, world, this.bounds)) {
-            return null; // Failed to copy
+        BattleArenaConfig config = this.getArena().getPlugin().getMainConfig();
+        Bounds shiftedBounds = bounds.shift(offsetX, 0, 0);
+        Spawns shiftedSpawns = this.spawns == null ? null : this.spawns.shift(offsetX, 0, 0);
+
+        // If schematic usage is disabled in the config OR schematic pasting fails,
+        // then attempt to fall back to copying the map directly from the map world.
+        // If that also fails, return null to indicate map setup failure.
+        if ((!config.isSchematicUsage() || !BlockUtil.pasteSchematic(this.name, this.getArena().getName(), world, shiftedBounds))
+                && !BlockUtil.copyToWorld(this.mapWorld, world, bounds, shiftedBounds)) {
+            return null;
         }
 
-        LiveCompetitionMap copy = arena.getMapFactory().create(this.name, arena, this.type, worldName, this.bounds, this.spawns);
+        LiveCompetitionMap copy = arena.getMapFactory().create(
+                this.name, arena, this.type,
+                BattleArena.instancesWorld().getName(),
+                shiftedBounds,
+                shiftedSpawns
+        );
+
+        copy.slot = slot;
+        copy.offset = offsetX;
+
         // Copy additional fields for custom maps
         if (copy.getClass() != LiveCompetitionMap.class) {
             Util.copyFields(this, copy);
@@ -275,6 +292,14 @@ public class LiveCompetitionMap implements ArenaLike, CompetitionMap, PostProces
         return copy.createCompetition(arena);
     }
 
+    public void setSlot(int slot) {
+        this.slot = slot;
+    }
+
+    public void setOffset(int offset) {
+        this.offset = offset;
+    }
+
     /**
      * Gets the default factory for creating {@link LiveCompetitionMap live maps}.
      *
@@ -282,5 +307,9 @@ public class LiveCompetitionMap implements ArenaLike, CompetitionMap, PostProces
      */
     public static MapFactory getFactory() {
         return FACTORY;
+    }
+
+    public int getSlot() {
+        return slot;
     }
 }
