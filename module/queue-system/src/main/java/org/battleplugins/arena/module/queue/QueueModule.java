@@ -1,5 +1,7 @@
 package org.battleplugins.arena.module.queue;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 import org.battleplugins.arena.Arena;
 import org.battleplugins.arena.BattleArena;
 import org.battleplugins.arena.competition.map.LiveCompetitionMap;
