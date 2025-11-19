@@ -1,5 +1,7 @@
 package org.battleplugins.arena.command;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.battleplugins.arena.Arena;
@@ -575,27 +577,27 @@ public class ArenaCommandExecutor extends BaseCommandExecutor {
         }
 
         if (plugin.getConnector() != null) {
-            com.google.gson.JsonObject payload = new com.google.gson.JsonObject();
+            JsonObject payload = new JsonObject();
             payload.addProperty("type", "arena_join");
             payload.addProperty("arena", this.arena.getName());
             payload.addProperty("map", map.getName());
 
-            com.google.gson.JsonArray playerData = new com.google.gson.JsonArray();
+            JsonArray playerData = new JsonArray();
             for (Player player : players) {
                 org.battleplugins.arena.proxy.SerializedPlayer serializedPlayer =
                         org.battleplugins.arena.proxy.SerializedPlayer.toSerializedPlayer(player);
 
-                com.google.gson.JsonObject playerObject = new com.google.gson.JsonObject();
+                JsonObject playerObject = new JsonObject();
                 playerObject.addProperty("uuid", serializedPlayer.getUuid());
 
                 if (!serializedPlayer.getElements().isEmpty()) {
-                    com.google.gson.JsonArray elementsArray = new com.google.gson.JsonArray();
+                    JsonArray elementsArray = new JsonArray();
                     serializedPlayer.getElements().forEach(element -> elementsArray.add(element.name()));
                     playerObject.add("elements", elementsArray);
                 }
 
                 if (!serializedPlayer.getAbilities().isEmpty()) {
-                    com.google.gson.JsonObject abilitiesObject = new com.google.gson.JsonObject();
+                    JsonObject abilitiesObject = new JsonObject();
                     serializedPlayer.getAbilities().forEach((slot, ability) ->
                             abilitiesObject.addProperty(String.valueOf(slot), ability));
                     playerObject.add("abilities", abilitiesObject);

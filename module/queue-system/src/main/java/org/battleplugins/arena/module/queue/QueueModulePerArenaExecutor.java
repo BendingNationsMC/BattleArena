@@ -55,7 +55,7 @@ public class QueueModulePerArenaExecutor implements SubCommandExecutor {
             Messages.ALREADY_IN_ARENA.send(player, "Cannot queue, already in arena.");
             return;
         } else if (plugin.getConnector() != null) {
-            com.google.gson.JsonObject payload = new com.google.gson.JsonObject();
+            JsonObject payload = new JsonObject();
 
             if (adding) {
                 // Joining the queue remotely
@@ -66,17 +66,17 @@ public class QueueModulePerArenaExecutor implements SubCommandExecutor {
                     payload.addProperty("origin", origin);
                 }
 
-                com.google.gson.JsonObject playerObject = new com.google.gson.JsonObject();
+                JsonObject playerObject = new JsonObject();
                 playerObject.addProperty("uuid", serialized.getUuid());
 
                 if (!serialized.getElements().isEmpty()) {
-                    com.google.gson.JsonArray elementsArray = new com.google.gson.JsonArray();
+                    JsonArray elementsArray = new JsonArray();
                     serialized.getElements().forEach(element -> elementsArray.add(element.name()));
                     playerObject.add("elements", elementsArray);
                 }
 
                 if (!serialized.getAbilities().isEmpty()) {
-                    com.google.gson.JsonObject abilitiesObject = new com.google.gson.JsonObject();
+                    JsonObject abilitiesObject = new JsonObject();
                     serialized.getAbilities().forEach((slot, ability) ->
                             abilitiesObject.addProperty(String.valueOf(slot), ability));
                     playerObject.add("abilities", abilitiesObject);

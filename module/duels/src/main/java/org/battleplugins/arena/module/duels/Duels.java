@@ -146,24 +146,24 @@ public class Duels implements ArenaModuleInitializer {
             LiveCompetitionMap map = dynamicMaps.iterator().next();
 
             if (plugin.getConnector() != null) {
-                com.google.gson.JsonObject payload = new com.google.gson.JsonObject();
+                JsonObject payload = new JsonObject();
                 payload.addProperty("type", "arena_join");
                 payload.addProperty("arena", arena.getName());
                 payload.addProperty("map", map.getName());
 
-                com.google.gson.JsonArray playerData = new com.google.gson.JsonArray();
+                JsonArray playerData = new JsonArray();
 
                 org.battleplugins.arena.proxy.SerializedPlayer requesterSerialized =
                         org.battleplugins.arena.proxy.SerializedPlayer.toSerializedPlayer(player);
-                com.google.gson.JsonObject requesterObject = new com.google.gson.JsonObject();
+                JsonObject requesterObject = new JsonObject();
                 requesterObject.addProperty("uuid", requesterSerialized.getUuid());
                 if (!requesterSerialized.getElements().isEmpty()) {
-                    com.google.gson.JsonArray elementsArray = new com.google.gson.JsonArray();
+                    JsonArray elementsArray = new JsonArray();
                     requesterSerialized.getElements().forEach(element -> elementsArray.add(element.name()));
                     requesterObject.add("elements", elementsArray);
                 }
                 if (!requesterSerialized.getAbilities().isEmpty()) {
-                    com.google.gson.JsonObject abilitiesObject = new com.google.gson.JsonObject();
+                    JsonObject abilitiesObject = new JsonObject();
                     requesterSerialized.getAbilities().forEach((slot, ability) ->
                             abilitiesObject.addProperty(String.valueOf(slot), ability));
                     requesterObject.add("abilities", abilitiesObject);
@@ -172,15 +172,15 @@ public class Duels implements ArenaModuleInitializer {
 
                 org.battleplugins.arena.proxy.SerializedPlayer targetSerialized =
                         SerializedPlayer.toSerializedPlayer(target);
-                com.google.gson.JsonObject targetObject = new com.google.gson.JsonObject();
+                JsonObject targetObject = new JsonObject();
                 targetObject.addProperty("uuid", targetSerialized.getUuid());
                 if (!targetSerialized.getElements().isEmpty()) {
-                    com.google.gson.JsonArray elementsArray = new com.google.gson.JsonArray();
+                    JsonArray elementsArray = new JsonArray();
                     targetSerialized.getElements().forEach(element -> elementsArray.add(element.name()));
                     targetObject.add("elements", elementsArray);
                 }
                 if (!targetSerialized.getAbilities().isEmpty()) {
-                    com.google.gson.JsonObject abilitiesObject = new com.google.gson.JsonObject();
+                    JsonObject abilitiesObject = new JsonObject();
                     targetSerialized.getAbilities().forEach((slot, ability) ->
                             abilitiesObject.addProperty(String.valueOf(slot), ability));
                     targetObject.add("abilities", abilitiesObject);

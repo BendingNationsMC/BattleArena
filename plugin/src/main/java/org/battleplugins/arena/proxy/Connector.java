@@ -1,8 +1,9 @@
 package org.battleplugins.arena.proxy;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import org.battleplugins.arena.Arena;
 import org.battleplugins.arena.BattleArena;
 import org.battleplugins.arena.competition.map.LiveCompetitionMap;
 import org.bukkit.Bukkit;
@@ -238,7 +239,7 @@ public class Connector {
 
                 String origin = object.has("origin") ? object.get("origin").getAsString() : "";
 
-                com.google.gson.JsonObject playerObject = object.getAsJsonObject("player");
+                JsonObject playerObject = object.getAsJsonObject("player");
 
                 // Build a SerializedPlayer instance from the JSON payload.
                 String uuid = playerObject.get("uuid").getAsString();
@@ -257,7 +258,7 @@ public class Connector {
                 }
 
                 if (playerObject.has("abilities") && playerObject.get("abilities").isJsonObject()) {
-                    com.google.gson.JsonObject abilitiesObject = playerObject.getAsJsonObject("abilities");
+                    JsonObject abilitiesObject = playerObject.getAsJsonObject("abilities");
                     abilitiesObject.entrySet().forEach(entry -> {
                         try {
                             int slot = Integer.parseInt(entry.getKey());
@@ -298,8 +299,8 @@ public class Connector {
                 }
 
                 String arenaName = object.get("arena").getAsString();
-                com.google.gson.JsonElement requesterElement = object.get("requester");
-                com.google.gson.JsonElement targetElement = object.get("target");
+                JsonElement requesterElement = object.get("requester");
+                JsonElement targetElement = object.get("target");
 
                 org.battleplugins.arena.Arena arena = plugin.getArena(arenaName);
                 if (arena == null) {
@@ -315,7 +316,7 @@ public class Connector {
                     String requesterId = requesterElement.getAsString();
                     requester = new org.battleplugins.arena.proxy.SerializedPlayer(requesterId);
                 } else {
-                    com.google.gson.JsonObject requesterObject = requesterElement.getAsJsonObject();
+                    JsonObject requesterObject = requesterElement.getAsJsonObject();
                     String requesterId = requesterObject.get("uuid").getAsString();
                     requester = new org.battleplugins.arena.proxy.SerializedPlayer(requesterId);
 
@@ -331,7 +332,7 @@ public class Connector {
                     }
 
                     if (requesterObject.has("abilities") && requesterObject.get("abilities").isJsonObject()) {
-                        com.google.gson.JsonObject abilitiesObject = requesterObject.getAsJsonObject("abilities");
+                        JsonObject abilitiesObject = requesterObject.getAsJsonObject("abilities");
                         abilitiesObject.entrySet().forEach(entry -> {
                             try {
                                 int slot = Integer.parseInt(entry.getKey());
@@ -347,7 +348,7 @@ public class Connector {
                     String targetId = targetElement.getAsString();
                     target = new org.battleplugins.arena.proxy.SerializedPlayer(targetId);
                 } else {
-                    com.google.gson.JsonObject targetObject = targetElement.getAsJsonObject();
+                    JsonObject targetObject = targetElement.getAsJsonObject();
                     String targetId = targetObject.get("uuid").getAsString();
                     target = new org.battleplugins.arena.proxy.SerializedPlayer(targetId);
 
@@ -363,7 +364,7 @@ public class Connector {
                     }
 
                     if (targetObject.has("abilities") && targetObject.get("abilities").isJsonObject()) {
-                        com.google.gson.JsonObject abilitiesObject = targetObject.getAsJsonObject("abilities");
+                        JsonObject abilitiesObject = targetObject.getAsJsonObject("abilities");
                         abilitiesObject.entrySet().forEach(entry -> {
                             try {
                                 int slot = Integer.parseInt(entry.getKey());
@@ -397,12 +398,12 @@ public class Connector {
                     return;
                 }
 
-                com.google.gson.JsonArray playersArray = object.getAsJsonArray("players");
+                JsonArray playersArray = object.getAsJsonArray("players");
 
                 if (plugin.getMainConfig().isProxyHost()) {
                     java.util.List<org.battleplugins.arena.proxy.SerializedPlayer> players = new java.util.ArrayList<>();
                     playersArray.forEach(el -> {
-                        com.google.gson.JsonObject playerObject = el.getAsJsonObject();
+                        JsonObject playerObject = el.getAsJsonObject();
                         String uuid = playerObject.get("uuid").getAsString();
                         org.battleplugins.arena.proxy.SerializedPlayer serializedPlayer =
                                 new org.battleplugins.arena.proxy.SerializedPlayer(uuid);
@@ -419,7 +420,7 @@ public class Connector {
                         }
 
                         if (playerObject.has("abilities") && playerObject.get("abilities").isJsonObject()) {
-                            com.google.gson.JsonObject abilitiesObject = playerObject.getAsJsonObject("abilities");
+                            JsonObject abilitiesObject = playerObject.getAsJsonObject("abilities");
                             abilitiesObject.entrySet().forEach(entry -> {
                                 try {
                                     int slot = Integer.parseInt(entry.getKey());
@@ -451,7 +452,7 @@ public class Connector {
                     }
 
                     playersArray.forEach(el -> {
-                        com.google.gson.JsonObject playerObject = el.getAsJsonObject();
+                        JsonObject playerObject = el.getAsJsonObject();
                         String uuid = playerObject.get("uuid").getAsString();
                         java.util.UUID id = java.util.UUID.fromString(uuid);
                         org.bukkit.entity.Player player = Bukkit.getPlayer(id);
@@ -485,7 +486,7 @@ public class Connector {
                         String uuid = el.getAsString();
                         players.add(new org.battleplugins.arena.proxy.SerializedPlayer(uuid));
                     } else if (el.isJsonObject()) {
-                        com.google.gson.JsonObject playerObject = el.getAsJsonObject();
+                        JsonObject playerObject = el.getAsJsonObject();
                         String uuid = playerObject.get("uuid").getAsString();
                         org.battleplugins.arena.proxy.SerializedPlayer player = new org.battleplugins.arena.proxy.SerializedPlayer(uuid);
 
@@ -501,7 +502,7 @@ public class Connector {
                         }
 
                         if (playerObject.has("abilities") && playerObject.get("abilities").isJsonObject()) {
-                            com.google.gson.JsonObject abilitiesObject = playerObject.getAsJsonObject("abilities");
+                            JsonObject abilitiesObject = playerObject.getAsJsonObject("abilities");
                             abilitiesObject.entrySet().forEach(entry -> {
                                 try {
                                     int slot = Integer.parseInt(entry.getKey());
@@ -645,19 +646,19 @@ public class Connector {
             payload.addProperty("origin", origin);
         }
 
-        com.google.gson.JsonArray playersArray = new com.google.gson.JsonArray();
+        JsonArray playersArray = new JsonArray();
         for (org.battleplugins.arena.proxy.SerializedPlayer sp : players) {
-            com.google.gson.JsonObject playerObject = new com.google.gson.JsonObject();
+            JsonObject playerObject = new JsonObject();
             playerObject.addProperty("uuid", sp.getUuid());
 
             if (!sp.getElements().isEmpty()) {
-                com.google.gson.JsonArray elementsArray = new com.google.gson.JsonArray();
+                JsonArray elementsArray = new JsonArray();
                 sp.getElements().forEach(element -> elementsArray.add(element.name()));
                 playerObject.add("elements", elementsArray);
             }
 
             if (!sp.getAbilities().isEmpty()) {
-                com.google.gson.JsonObject abilitiesObject = new com.google.gson.JsonObject();
+                JsonObject abilitiesObject = new JsonObject();
                 sp.getAbilities().forEach((slot, ability) ->
                         abilitiesObject.addProperty(String.valueOf(slot), ability));
                 playerObject.add("abilities", abilitiesObject);

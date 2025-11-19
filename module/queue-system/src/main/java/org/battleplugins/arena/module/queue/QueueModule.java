@@ -145,7 +145,7 @@ public class QueueModule implements ArenaModuleInitializer {
             removeFromQueues(uuid);
         } else if (plugin.getConnector() != null) {
             // Notify the proxy host so it can clear this player from any queues.
-            com.google.gson.JsonObject payload = new com.google.gson.JsonObject();
+            JsonObject payload = new JsonObject();
             payload.addProperty("type", "queue_leave");
             payload.addProperty("uuid", uuid);
 
@@ -261,7 +261,7 @@ public class QueueModule implements ArenaModuleInitializer {
                                 String mapName,
                                 String origin,
                                 List<SerializedPlayer> batch) {
-        com.google.gson.JsonObject payload = new com.google.gson.JsonObject();
+        JsonObject payload = new JsonObject();
         payload.addProperty("type", "queue_match");
         payload.addProperty("arena", arena.getName());
         payload.addProperty("map", mapName);
@@ -269,19 +269,19 @@ public class QueueModule implements ArenaModuleInitializer {
             payload.addProperty("origin", origin);
         }
 
-        com.google.gson.JsonArray playersArray = new com.google.gson.JsonArray();
+        JsonArray playersArray = new JsonArray();
         for (SerializedPlayer sp : batch) {
-            com.google.gson.JsonObject playerObject = new com.google.gson.JsonObject();
+            JsonObject playerObject = new JsonObject();
             playerObject.addProperty("uuid", sp.getUuid());
 
             if (!sp.getElements().isEmpty()) {
-                com.google.gson.JsonArray elementsArray = new com.google.gson.JsonArray();
+                JsonArray elementsArray = new JsonArray();
                 sp.getElements().forEach(element -> elementsArray.add(element.name()));
                 playerObject.add("elements", elementsArray);
             }
 
             if (!sp.getAbilities().isEmpty()) {
-                com.google.gson.JsonObject abilitiesObject = new com.google.gson.JsonObject();
+                JsonObject abilitiesObject = new JsonObject();
                 sp.getAbilities().forEach((slot, ability) ->
                         abilitiesObject.addProperty(String.valueOf(slot), ability));
                 playerObject.add("abilities", abilitiesObject);
