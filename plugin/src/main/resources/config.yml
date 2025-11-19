@@ -29,6 +29,35 @@ randomized-arena-join: false
 # disabled-modules: [parties]
 disabled-modules: []
 
+# Uses schematics
+# Might be more optimized
+use-schematic: false
+
+# Turns on proxy support requires proxy bridge
+proxy-support: false
+# Shares the map and arenas across the server.
+proxy-host: false
+
+# Name of the proxy/velocity backend server that should host
+# proxy arenas (e.g. a dedicated duels server). Used when
+# sending players from other servers to the proxy host.
+proxy-host-server: ""
+
+# This backend's proxy server name. This should match the
+# server name as configured on your proxy (Bungee/Velocity)
+# and is used so the proxy host can send players back to
+# the server they originally queued on.
+proxy-server-name: ""
+
+# Redis settings for proxy messaging between BattleArena instances.
+# All servers that should communicate must point at the same Redis
+# instance, database and channel.
+redis-host: "127.0.0.1"
+redis-port: 6379
+redis-password: ""
+redis-database: 0
+redis-channel: "battlearena:proxy"
+
 # Event configurations
 events:
   FFA:

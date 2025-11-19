@@ -25,6 +25,7 @@ public class MapCreateContext extends EditorContext<MapCreateContext> {
     private MapType mapType;
     private Position min;
     private Position max;
+    private boolean remote;
 
     private PositionWithRotation waitroomSpawn;
     private PositionWithRotation spectatorSpawn;
@@ -65,6 +66,14 @@ public class MapCreateContext extends EditorContext<MapCreateContext> {
 
     public void setMax(Position max) {
         this.max = max;
+    }
+
+    public boolean isRemote() {
+        return this.remote;
+    }
+
+    public void setRemote(boolean remote) {
+        this.remote = remote;
     }
 
     public PositionWithRotation getWaitroomSpawn() {
@@ -140,6 +149,7 @@ public class MapCreateContext extends EditorContext<MapCreateContext> {
         this.mapType = map.getType();
         this.min = Position.block(bounds.getMinX(), bounds.getMinY(), bounds.getMinZ());
         this.max = Position.block(bounds.getMaxX(), bounds.getMaxY(), bounds.getMaxZ());
+        this.remote = map.isRemote();
 
         Spawns spawns = map.getSpawns();
         if (spawns == null) {
@@ -175,6 +185,7 @@ public class MapCreateContext extends EditorContext<MapCreateContext> {
         this.spawns.forEach((team, spawnsList) -> teamSpawns.put(team, new TeamSpawns(spawnsList)));
 
         map.setSpawns(spawns);
+        map.setRemote(this.remote);
     }
 
     @Override
@@ -195,6 +206,7 @@ public class MapCreateContext extends EditorContext<MapCreateContext> {
                 ", mapType=" + this.mapType +
                 ", min=" + this.min +
                 ", max=" + this.max +
+                ", remote=" + this.remote +
                 ", waitroomSpawn=" + this.waitroomSpawn +
                 ", spectatorSpawn=" + this.spectatorSpawn +
                 ", spawns=" + this.spawns +

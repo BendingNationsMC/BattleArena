@@ -43,6 +43,21 @@ public final class ArenaEditorWizards {
                     MapType.class,
                     ctx -> ctx::setMapType
             ))
+            .addStage(MapOption.REMOTE, new TextInputStage<>(
+                    Messages.MAP_SET_REMOTE,
+                    Messages.INVALID_INPUT.withContext("true, false"),
+                    (ctx, input) -> {
+                        String value = input.trim().toLowerCase(Locale.ROOT);
+                        return value.equals("true") || value.equals("false")
+                                || value.equals("yes") || value.equals("no")
+                                || value.equals("y") || value.equals("n");
+                    },
+                    ctx -> input -> {
+                        String value = input.trim().toLowerCase(Locale.ROOT);
+                        boolean remote = value.equals("true") || value.equals("yes") || value.equals("y");
+                        ctx.setRemote(remote);
+                    }
+            ))
             .addStage(MapOption.MIN_POS, new PositionInputStage<>(Messages.MAP_SET_MIN_POSITION, ctx -> ctx::setMin))
             .addStage(MapOption.MAX_POS, new PositionInputStage<>(Messages.MAP_SET_MAX_POSITION, ctx -> ctx::setMax))
             .addStage(MapOption.WAITROOM_SPAWN, new SpawnInputStage<>(Messages.MAP_SET_WAITROOM_SPAWN, "waitroom", ctx -> ctx::setWaitroomSpawn))
@@ -101,7 +116,7 @@ public final class ArenaEditorWizards {
                 ctx.getSpawns().forEach((team, spawns) -> teamSpawns.put(team, new TeamSpawns(spawns)));
                 Spawns spawns = new Spawns(ctx.getWaitroomSpawn(), ctx.getSpectatorSpawn(), teamSpawns);
 
-                LiveCompetitionMap map = ctx.getArena().getMapFactory().create(ctx.getMapName(), ctx.getArena(), ctx.getMapType(), ctx.getPlayer().getWorld().getName(), bounds, spawns);
+                LiveCompetitionMap map = ctx.getArena().getMapFactory().create(ctx.getMapName(), ctx.getArena(), ctx.getMapType(), ctx.getPlayer().getWorld().getName(), bounds, spawns, ctx.isRemote());
                 map.postProcess(); // Call post process to ensure all data is loaded
 
                 BattleArena.getInstance().addArenaMap(ctx.getArena(), map);

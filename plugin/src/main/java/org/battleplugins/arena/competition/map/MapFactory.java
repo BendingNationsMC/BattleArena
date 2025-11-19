@@ -37,8 +37,8 @@ public class MapFactory {
      * @param spawns the spawn locations
      * @return the created map
      */
-    public LiveCompetitionMap create(String name, Arena arena, MapType type, String world, @Nullable Bounds bounds, @Nullable Spawns spawns) {
-        return this.provider.create(name, arena, type, world, bounds, spawns);
+    public LiveCompetitionMap create(String name, Arena arena, MapType type, String world, @Nullable Bounds bounds, @Nullable Spawns spawns, boolean remote) {
+        return this.provider.create(name, arena, type, world, bounds, spawns, remote);
     }
 
     public static <M extends LiveCompetitionMap> MapFactory create(Class<M> mapClass, Provider<M> provider) {
@@ -58,6 +58,6 @@ public class MapFactory {
          * @param spawns the spawn locations
          * @return the created map
          */
-        M create(String name, Arena arena, MapType type, String world, @Nullable Bounds bounds, @Nullable Spawns spawns);
+        M create(String name, Arena arena, MapType type, String world, @Nullable Bounds bounds, @Nullable Spawns spawns, boolean remote);
     }
 }

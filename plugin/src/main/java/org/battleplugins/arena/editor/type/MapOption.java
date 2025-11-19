@@ -3,6 +3,7 @@ package org.battleplugins.arena.editor.type;
 public enum MapOption implements EditorKey {
     NAME("name"),
     TYPE("type"),
+    REMOTE("remote"),
     MIN_POS("minPos"),
     MAX_POS("maxPos"),
     WAITROOM_SPAWN("waitroomSpawn"),

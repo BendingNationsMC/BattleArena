@@ -19,6 +19,8 @@ dependencies {
     implementation(libs.bstats.bukkit)
     compileOnlyApi(libs.paper.api)
     compileOnly(libs.fawe.bukkit)
+    implementation("redis.clients:jedis:5.1.4")
+    compileOnly(fileTree(mapOf("dir" to "libs", "include" to listOf("*.jar"))))
 }
 
 java {

@@ -133,6 +133,10 @@ public class ArenaCommandExecutor extends BaseCommandExecutor {
 
             Competition<?> competition = result.competition();
             if (competition != null) {
+                if (this.tryHandleProxyCompetition(players, competition)) {
+                    return;
+                }
+
                 competition.join(players, PlayerRole.PLAYING);
 
                 for (Player toJoin : players) {
@@ -176,9 +180,14 @@ public class ArenaCommandExecutor extends BaseCommandExecutor {
                                 return;
                             }
 
+                            Competition<?> created = newResult.competition();
+                            if (this.tryHandleProxyCompetition(players, created)) {
+                                return;
+                            }
+
                             for (Player toJoin : players) {
-                                newResult.competition().join(toJoin, PlayerRole.PLAYING);
-                                Messages.ARENA_JOINED.send(toJoin, newResult.competition().getMap().getName());
+                                created.join(toJoin, PlayerRole.PLAYING);
+                                Messages.ARENA_JOINED.send(toJoin, created.getMap().getName());
                             }
                         });
             }
@@ -540,6 +549,71 @@ public class ArenaCommandExecutor extends BaseCommandExecutor {
         }
 
         return super.onVerifyTabComplete(arg, parameter);
+    }
+
+    /**
+     * Handles proxy-aware joining logic for competitions whose maps
+     * are marked as remote. On non-host servers with proxy support,
+     * players are sent to the proxy host instead of joining locally.
+     *
+     * @param players      the players attempting to join
+     * @param competition  the competition that would be joined
+     * @return true if the join was handled via proxy, false to continue normally
+     */
+    private boolean tryHandleProxyCompetition(Set<Player> players, Competition<?> competition) {
+        BattleArena plugin = this.arena.getPlugin();
+        if (!plugin.getMainConfig().isProxySupport() || plugin.getMainConfig().isProxyHost()) {
+            return false;
+        }
+
+        if (!(competition instanceof LiveCompetition<?> liveCompetition)) {
+            return false;
+        }
+
+        if (!(liveCompetition.getMap() instanceof LiveCompetitionMap map) || !map.isRemote()) {
+            return false;
+        }
+
+        if (plugin.getConnector() != null) {
+            com.google.gson.JsonObject payload = new com.google.gson.JsonObject();
+            payload.addProperty("type", "arena_join");
+            payload.addProperty("arena", this.arena.getName());
+            payload.addProperty("map", map.getName());
+
+            com.google.gson.JsonArray playerData = new com.google.gson.JsonArray();
+            for (Player player : players) {
+                org.battleplugins.arena.proxy.SerializedPlayer serializedPlayer =
+                        org.battleplugins.arena.proxy.SerializedPlayer.toSerializedPlayer(player);
+
+                com.google.gson.JsonObject playerObject = new com.google.gson.JsonObject();
+                playerObject.addProperty("uuid", serializedPlayer.getUuid());
+
+                if (!serializedPlayer.getElements().isEmpty()) {
+                    com.google.gson.JsonArray elementsArray = new com.google.gson.JsonArray();
+                    serializedPlayer.getElements().forEach(element -> elementsArray.add(element.name()));
+                    playerObject.add("elements", elementsArray);
+                }
+
+                if (!serializedPlayer.getAbilities().isEmpty()) {
+                    com.google.gson.JsonObject abilitiesObject = new com.google.gson.JsonObject();
+                    serializedPlayer.getAbilities().forEach((slot, ability) ->
+                            abilitiesObject.addProperty(String.valueOf(slot), ability));
+                    playerObject.add("abilities", abilitiesObject);
+                }
+
+                playerData.add(playerObject);
+            }
+            payload.add("players", playerData);
+
+            String origin = plugin.getMainConfig().getProxyServerName();
+            if (origin != null && !origin.isEmpty()) {
+                payload.addProperty("origin", origin);
+            }
+
+            plugin.getConnector().sendToRouter(payload.toString());
+        }
+
+        return true;
     }
 
     @Override

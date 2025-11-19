@@ -1,6 +1,5 @@
 package org.battleplugins.arena.competition.map;
 
-import net.kyori.adventure.util.TriState;
 import org.battleplugins.arena.Arena;
 import org.battleplugins.arena.ArenaLike;
 import org.battleplugins.arena.BattleArena;
@@ -13,14 +12,10 @@ import org.battleplugins.arena.config.ArenaOption;
 import org.battleplugins.arena.config.ParseException;
 import org.battleplugins.arena.config.PostProcessable;
 import org.battleplugins.arena.util.BlockUtil;
-import org.battleplugins.arena.util.SlotPool;
 import org.battleplugins.arena.util.Util;
-import org.battleplugins.arena.util.VoidChunkGenerator;
 import org.bukkit.Bukkit;
 import org.bukkit.GameRule;
 import org.bukkit.World;
-import org.bukkit.WorldCreator;
-import org.bukkit.WorldType;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.jetbrains.annotations.Nullable;
@@ -30,7 +25,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Locale;
 import java.util.Optional;
-import java.util.UUID;
 
 /**
  * Represents a map for a competition which is live on this server.
@@ -61,6 +55,9 @@ public class LiveCompetitionMap implements ArenaLike, CompetitionMap, PostProces
     private int offset;
     private int slot;
 
+    @ArenaOption(name = "proxy", description = "Makes the map a proxy")
+    private boolean remote;
+
     public LiveCompetitionMap() {
     }
 
@@ -73,6 +70,15 @@ public class LiveCompetitionMap implements ArenaLike, CompetitionMap, PostProces
         this.spawns = spawns;
     }
 
+    /**
+     * Convenience constructor allowing the proxy/remote flag to be set
+     * at creation time.
+     */
+    public LiveCompetitionMap(String name, Arena arena, MapType type, String world, @Nullable Bounds bounds, @Nullable Spawns spawns, boolean remote) {
+        this(name, arena, type, world, bounds, spawns);
+        this.remote = remote;
+    }
+
     @Override
     public void postProcess() {
         if (this.mapWorld != null) {
@@ -80,7 +86,7 @@ public class LiveCompetitionMap implements ArenaLike, CompetitionMap, PostProces
         }
 
         this.mapWorld = Bukkit.getWorld(this.world);
-        if (this.mapWorld == null) {
+        if (this.mapWorld == null && !remote) {
             throw new IllegalStateException("World " + this.world + " for map " + this.name + " in arena " + this.arena.getName() + " does not exist!");
         }
     }
@@ -274,7 +280,8 @@ public class LiveCompetitionMap implements ArenaLike, CompetitionMap, PostProces
                 this.name, arena, this.type,
                 BattleArena.instancesWorld().getName(),
                 shiftedBounds,
-                shiftedSpawns
+                shiftedSpawns,
+                this.remote
         );
 
         copy.slot = slot;
@@ -290,6 +297,94 @@ public class LiveCompetitionMap implements ArenaLike, CompetitionMap, PostProces
         copy.postProcess();
 
         return copy.createCompetition(arena);
+    }
+
+    /**
+     * Prepares a new dynamic competition for this map asynchronously.
+     * <p>
+     * The returned future completes once the underlying FAWE operations
+     * (schematic paste or world copy) have finished and the competition
+     * has been created, or with null if preparation failed.
+     *
+     * @param arena the arena to create the competition for
+     * @return a future completing with the created dynamic competition or null on failure
+     */
+    @Nullable
+    public final java.util.concurrent.CompletableFuture<LiveCompetition<?>> createDynamicCompetitionAsync(Arena arena) {
+        java.util.concurrent.CompletableFuture<LiveCompetition<?>> future = new java.util.concurrent.CompletableFuture<>();
+
+        if (this.type != MapType.DYNAMIC) {
+            future.completeExceptionally(new IllegalStateException("Cannot create dynamic competition for non-dynamic map!"));
+            return future;
+        }
+
+        int slot = BattleArena.getMapPool().acquire();
+        int offsetX = slot * BattleArena.SLOT_SPACING;
+        World world = BattleArena.instancesWorld();
+
+        if (world == null) {
+            BattleArena.getMapPool().release(slot);
+            future.complete(null);
+            return future;
+        }
+
+        BattleArenaConfig config = this.getArena().getPlugin().getMainConfig();
+        Bounds shiftedBounds = bounds.shift(offsetX, 0, 0);
+        Spawns shiftedSpawns = this.spawns == null ? null : this.spawns.shift(offsetX, 0, 0);
+
+        Runnable onReady = () -> {
+            try {
+                LiveCompetitionMap copy = arena.getMapFactory().create(
+                        this.name, arena, this.type,
+                        BattleArena.instancesWorld().getName(),
+                        shiftedBounds,
+                        shiftedSpawns,
+                        this.remote
+                );
+
+                copy.slot = slot;
+                copy.offset = offsetX;
+
+                // Copy additional fields for custom maps
+                if (copy.getClass() != LiveCompetitionMap.class) {
+                    Util.copyFields(this, copy);
+                }
+
+                copy.mapWorld = world;
+                copy.parentWorld = this.mapWorld;
+                copy.postProcess();
+
+                LiveCompetition<?> competition = copy.createCompetition(arena);
+                arena.getPlugin().addCompetition(arena, competition);
+
+                future.complete(competition);
+            } catch (Throwable t) {
+                BattleArena.getInstance().error("Failed to prepare dynamic competition for map " + this.name, t);
+                BattleArena.getMapPool().release(slot);
+                future.complete(null);
+            }
+        };
+
+        boolean started = false;
+
+        if (!config.isSchematicUsage() || !BlockUtil.pasteSchematic(this.name, this.getArena().getName(), world, shiftedBounds, onReady)) {
+            // Either schematic usage is disabled or paste failed, fall back to world copy.
+            if (!BlockUtil.copyToWorld(this.mapWorld, world, bounds, shiftedBounds, onReady)) {
+                BattleArena.getMapPool().release(slot);
+                future.complete(null);
+            } else {
+                started = true;
+            }
+        } else {
+            started = true;
+        }
+
+        if (!started && !future.isDone()) {
+            BattleArena.getMapPool().release(slot);
+            future.complete(null);
+        }
+
+        return future;
     }
 
     public void setSlot(int slot) {
@@ -311,5 +406,13 @@ public class LiveCompetitionMap implements ArenaLike, CompetitionMap, PostProces
 
     public int getSlot() {
         return slot;
+    }
+
+    public boolean isRemote() {
+        return remote;
+    }
+
+    public void setRemote(boolean remote) {
+        this.remote = remote;
     }
 }

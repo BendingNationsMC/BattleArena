@@ -2,11 +2,7 @@ package org.battleplugins.arena;
 
 import org.battleplugins.arena.command.BACommandExecutor;
 import org.battleplugins.arena.command.BaseCommandExecutor;
-import org.battleplugins.arena.competition.Competition;
-import org.battleplugins.arena.competition.CompetitionManager;
-import org.battleplugins.arena.competition.CompetitionResult;
-import org.battleplugins.arena.competition.CompetitionType;
-import org.battleplugins.arena.competition.PlayerRole;
+import org.battleplugins.arena.competition.*;
 import org.battleplugins.arena.competition.event.EventOptions;
 import org.battleplugins.arena.competition.event.EventScheduler;
 import org.battleplugins.arena.competition.event.EventType;
@@ -22,6 +18,7 @@ import org.battleplugins.arena.messages.MessageLoader;
 import org.battleplugins.arena.module.ArenaModuleContainer;
 import org.battleplugins.arena.module.ArenaModuleLoader;
 import org.battleplugins.arena.module.ModuleLoadException;
+import org.battleplugins.arena.proxy.Connector;
 import org.battleplugins.arena.team.ArenaTeams;
 import org.battleplugins.arena.util.*;
 import org.bstats.bukkit.Metrics;
@@ -44,16 +41,9 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
@@ -66,9 +56,9 @@ public class BattleArena extends JavaPlugin implements LoggerHolder, BattleArena
     private static BattleArena instance;
 
     final Map<String, ArenaType> arenaTypes = new HashMap<>();
-    final Map<String, Arena> arenas = new HashMap<>();
+    final Map<String, Arena> arenas = new ConcurrentHashMap<>();
 
-    private final Map<Arena, List<LiveCompetitionMap>> arenaMaps = new HashMap<>();
+    private final Map<Arena, List<LiveCompetitionMap>> arenaMaps = new ConcurrentHashMap<>();
     private final Map<String, ArenaLoader> arenaLoaders = new HashMap<>();
 
     private final CompetitionManager competitionManager = new CompetitionManager(this);
@@ -87,6 +77,8 @@ public class BattleArena extends JavaPlugin implements LoggerHolder, BattleArena
     private static World INSTANCES_WORLD;
     public static final int SLOT_SPACING = 2048; // 128 chunks apart
     private static final SlotPool MAP_POOL = new SlotPool();
+    private Connector connector;
+    private boolean initialized;
 
 
     @Override
@@ -113,11 +105,15 @@ public class BattleArena extends JavaPlugin implements LoggerHolder, BattleArena
         new BattleArenaPreInitializeEvent(this).callEvent();
     }
 
-    public static World instancesWorld() { return INSTANCES_WORLD; }
+    public static World instancesWorld() {
+        return INSTANCES_WORLD;
+    }
 
     @Override
     public void onEnable() {
         Bukkit.getPluginManager().registerEvents(new BattleArenaListener(this), this);
+        // Register proxy messaging channel for Bungee/Velocity transfers
+        this.getServer().getMessenger().registerOutgoingPluginChannel(this, "BungeeCord");
 
         // Register default arenas
         this.registerArena(this, "Arena", Arena.class);
@@ -136,6 +132,11 @@ public class BattleArena extends JavaPlugin implements LoggerHolder, BattleArena
 
         // Enable the plugin
         this.enable();
+
+        if (config.isProxyHost() && config.isProxySupport()) {
+            // Handle generic arena join requests on the proxy host.
+            Bukkit.getPluginManager().registerEvents(new org.battleplugins.arena.proxy.ProxyArenaJoinHandler(this), this);
+        }
 
         // Enable modules
         this.moduleLoader.enableModules();
@@ -163,6 +164,11 @@ public class BattleArena extends JavaPlugin implements LoggerHolder, BattleArena
     }
 
     private void enable() {
+        if (config.isProxySupport()) {
+            connector = new Connector(this);
+            connector.connect();
+        }
+
         this.debugMode = this.config.isDebugMode();
 
         if (Files.notExists(this.arenasPath)) {
@@ -220,8 +226,17 @@ public class BattleArena extends JavaPlugin implements LoggerHolder, BattleArena
         this.arenaMaps.clear();
         this.arenaLoaders.clear();
 
+        if (this.connector != null) {
+            try {
+                this.connector.shutdown();
+            } catch (Exception ignored) {
+            }
+            this.connector = null;
+        }
+
         this.config = null;
         this.teams = null;
+        this.initialized = false;
     }
 
     void postInitialize() {
@@ -232,7 +247,7 @@ public class BattleArena extends JavaPlugin implements LoggerHolder, BattleArena
         this.loadArenas();
 
         // Load the arena maps
-        this.loadArenaMaps();
+        this.loadArenaMaps(false);
 
         // Initialize matches
         for (Map.Entry<Arena, List<LiveCompetitionMap>> entry : this.arenaMaps.entrySet()) {
@@ -263,6 +278,19 @@ public class BattleArena extends JavaPlugin implements LoggerHolder, BattleArena
 
                 this.eventScheduler.scheduleEvent(arena, options, true);
                 this.info("Scheduled event for arena {} in {}m.", arena.getName(), options.getInterval().plus(options.getDelay()));
+            }
+        }
+
+        this.initialized = true;
+
+        // Handle proxy arena synchronization after we are fully initialized.
+        if (this.config.isProxySupport() && this.connector != null) {
+            if (this.config.isProxyHost()) {
+                // Host server shares its maps with other BattleArena instances.
+                this.connector.sendSyncConfig();
+            } else {
+                // Non-host servers request the latest maps from the host via the TCP router.
+                this.connector.sendToRouter("{\"type\":\"sync_request\"}");
             }
         }
     }
@@ -335,15 +363,16 @@ public class BattleArena extends JavaPlugin implements LoggerHolder, BattleArena
     /**
      * Registers the given {@link Arena}.
      *
-     * @param plugin the plugin registering the arena
-     * @param name the name of the arena
+     * @param plugin     the plugin registering the arena
+     * @param name       the name of the arena
      * @param arenaClass the arena type to register
      */
     public <T extends Arena> void registerArena(Plugin plugin, String name, Class<T> arenaClass) {
         this.registerArena(plugin, name, arenaClass, () -> {
             try {
                 return arenaClass.getConstructor().newInstance();
-            } catch (InstantiationException | IllegalAccessException | NoSuchMethodException | InvocationTargetException e) {
+            } catch (InstantiationException | IllegalAccessException | NoSuchMethodException |
+                     InvocationTargetException e) {
                 throw new RuntimeException("Failed to instantiate arena " + arenaClass.getName(), e);
             }
         });
@@ -352,9 +381,9 @@ public class BattleArena extends JavaPlugin implements LoggerHolder, BattleArena
     /**
      * Registers the given {@link Arena}.
      *
-     * @param plugin the plugin registering the arena
-     * @param name the name of the arena
-     * @param arenaClass the arena type to register
+     * @param plugin       the plugin registering the arena
+     * @param name         the name of the arena
+     * @param arenaClass   the arena type to register
      * @param arenaFactory the factory to create the arena
      */
     public <T extends Arena> void registerArena(Plugin plugin, String name, Class<T> arenaClass, Supplier<T> arenaFactory) {
@@ -387,7 +416,7 @@ public class BattleArena extends JavaPlugin implements LoggerHolder, BattleArena
      * Returns the map from the given {@link Arena} and map name.
      *
      * @param arena the arena to get the map from
-     * @param name the name of the map
+     * @param name  the name of the map
      * @return the map from the given arena and name
      */
     public Optional<LiveCompetitionMap> map(Arena arena, String name) {
@@ -398,7 +427,7 @@ public class BattleArena extends JavaPlugin implements LoggerHolder, BattleArena
      * Returns the map from the given {@link Arena} and map name.
      *
      * @param arena the arena to get the map from
-     * @param name the name of the map
+     * @param name  the name of the map
      * @return the map from the given arena and name, or null if not found
      */
     @Nullable
@@ -418,7 +447,7 @@ public class BattleArena extends JavaPlugin implements LoggerHolder, BattleArena
      * Adds a new {@link LiveCompetitionMap} to the given {@link Arena}.
      *
      * @param arena the arena to add the map to
-     * @param map the map to add
+     * @param map   the map to add
      */
     public void addArenaMap(Arena arena, LiveCompetitionMap map) {
         this.arenaMaps.computeIfAbsent(arena, k -> new ArrayList<>()).add(map);
@@ -428,7 +457,7 @@ public class BattleArena extends JavaPlugin implements LoggerHolder, BattleArena
      * Removes the given {@link LiveCompetitionMap} from the given {@link Arena}.
      *
      * @param arena the arena to remove the map from
-     * @param map the map to remove
+     * @param map   the map to remove
      */
     public void removeArenaMap(Arena arena, LiveCompetitionMap map) {
         this.arenaMaps.computeIfAbsent(arena, k -> new ArrayList<>()).remove(map);
@@ -464,7 +493,7 @@ public class BattleArena extends JavaPlugin implements LoggerHolder, BattleArena
      * specified map name.
      *
      * @param arena the arena to get the competitions for
-     * @param name the name of the competition
+     * @param name  the name of the competition
      * @return all the competitions for the given arena and name
      */
     public List<Competition<?>> getCompetitions(Arena arena, String name) {
@@ -476,10 +505,10 @@ public class BattleArena extends JavaPlugin implements LoggerHolder, BattleArena
      * {@link Player}, {@link PlayerRole} and map name. If no competition is found,
      * a new one is created if applicable.
      *
-     * @param arena the arena to get the competition for
+     * @param arena  the arena to get the competition for
      * @param player the player to get the competition for
-     * @param role the role of the player
-     * @param name the name of the competition
+     * @param role   the role of the player
+     * @param name   the name of the competition
      * @return the competition result
      */
     public CompletableFuture<CompetitionResult> getOrCreateCompetition(Arena arena, Player player, PlayerRole role, @Nullable String name) {
@@ -491,10 +520,10 @@ public class BattleArena extends JavaPlugin implements LoggerHolder, BattleArena
      * {@link Player}s, {@link PlayerRole} and map name. If no competition is found,
      * a new one is created if applicable.
      *
-     * @param arena the arena to get the competition for
+     * @param arena   the arena to get the competition for
      * @param players the players to get the competition for
-     * @param role the role of the player
-     * @param name the name of the competition
+     * @param role    the role of the player
+     * @param name    the name of the competition
      * @return the competition result
      */
     public CompletableFuture<CompetitionResult> getOrCreateCompetition(Arena arena, Collection<Player> players, PlayerRole role, @Nullable String name) {
@@ -505,8 +534,8 @@ public class BattleArena extends JavaPlugin implements LoggerHolder, BattleArena
      * Finds a joinable {@link Competition} for the given {@link Player} and {@link PlayerRole}.
      *
      * @param competitions the competitions to find from
-     * @param player the player to find the competition for
-     * @param role the role of the player
+     * @param player       the player to find the competition for
+     * @param role         the role of the player
      * @return the competition result
      */
     public CompletableFuture<CompetitionResult> findJoinableCompetition(List<Competition<?>> competitions, Player player, PlayerRole role) {
@@ -517,8 +546,8 @@ public class BattleArena extends JavaPlugin implements LoggerHolder, BattleArena
      * Finds a joinable {@link Competition} for the given {@link Player}s and {@link PlayerRole}.
      *
      * @param competitions the competitions to find from
-     * @param players the players to find the competition for
-     * @param role the role of the player
+     * @param players      the players to find the competition for
+     * @param role         the role of the player
      * @return the competition result
      */
     public CompletableFuture<CompetitionResult> findJoinableCompetition(List<Competition<?>> competitions, Collection<Player> players, PlayerRole role) {
@@ -528,7 +557,7 @@ public class BattleArena extends JavaPlugin implements LoggerHolder, BattleArena
     /**
      * Adds a new {@link Competition} to the given {@link Arena}.
      *
-     * @param arena the arena to add the competition to
+     * @param arena       the arena to add the competition to
      * @param competition the competition to add
      */
     public void addCompetition(Arena arena, Competition<?> competition) {
@@ -538,7 +567,7 @@ public class BattleArena extends JavaPlugin implements LoggerHolder, BattleArena
     /**
      * Removes the given {@link Competition} from the specified {@link Arena}.
      *
-     * @param arena the arena to remove the competition from
+     * @param arena       the arena to remove the competition from
      * @param competition the competition to remove
      */
     public void removeCompetition(Arena arena, Competition<?> competition) {
@@ -564,6 +593,65 @@ public class BattleArena extends JavaPlugin implements LoggerHolder, BattleArena
     }
 
     /**
+     * Returns the connector used for proxy communication, if any.
+     *
+     * @return the connector, or null if proxy support is disabled
+     */
+    @Nullable
+    public Connector getConnector() {
+        return this.connector;
+    }
+
+    /**
+     * Returns whether the plugin has completed its post-initialization phase.
+     *
+     * @return whether the plugin is fully initialized
+     */
+    public boolean isInitialized() {
+        return this.initialized;
+    }
+
+    /**
+     * Sends the given player to the configured proxy host server,
+     * if proxy support is enabled and a host server name is set.
+     * <p>
+     * This uses the standard BungeeCord plugin messaging channel,
+     * which is also supported in Velocity via the legacy bridge.
+     *
+     * @param player the player to send
+     */
+    public void sendPlayerToProxyHost(Player player) {
+        if (!this.config.isProxySupport()) {
+            return;
+        }
+
+        this.sendPlayerToServer(player, this.config.getProxyHostServer());
+    }
+
+    /**
+     * Sends the given player to the specified proxy server using the
+     * standard BungeeCord plugin messaging channel.
+     *
+     * @param player the player to send
+     * @param server the target server name on the proxy
+     */
+    public void sendPlayerToServer(Player player, String server) {
+        if (server == null || server.isEmpty()) {
+            return;
+        }
+
+        try {
+            java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+            java.io.DataOutputStream out = new java.io.DataOutputStream(baos);
+            out.writeUTF("Connect");
+            out.writeUTF(server);
+            player.sendPluginMessage(this, "BungeeCord", baos.toByteArray());
+        } catch (java.io.IOException ignored) {
+            // If plugin messaging fails we silently ignore.
+        }
+    }
+
+    /**
      * Returns the teams for the plugin.
      *
      * @return the teams for the plugin
@@ -575,9 +663,9 @@ public class BattleArena extends JavaPlugin implements LoggerHolder, BattleArena
     /**
      * Returns the {@link ArenaModuleContainer} for the given module id.
      *
-     * @param id the id of the module
-     * @return the module container for the given id
+     * @param id  the id of the module
      * @param <T> the type of the module
+     * @return the module container for the given id
      */
     public <T> Optional<ArenaModuleContainer<T>> module(String id) {
         return Optional.ofNullable(this.getModule(id));
@@ -586,9 +674,9 @@ public class BattleArena extends JavaPlugin implements LoggerHolder, BattleArena
     /**
      * Returns the {@link ArenaModuleContainer} for the given module id.
      *
-     * @param id the id of the module
-     * @return the module container for the given id, or null if not found
+     * @param id  the id of the module
      * @param <T> the type of the module
+     * @return the module container for the given id, or null if not found
      */
     @Nullable
     public <T> ArenaModuleContainer<T> getModule(String id) {
@@ -617,8 +705,8 @@ public class BattleArena extends JavaPlugin implements LoggerHolder, BattleArena
      * Registers a new command executor for the given command.
      *
      * @param commandName the name of the command
-     * @param executor the executor to register
-     * @param aliases the aliases for the command
+     * @param executor    the executor to register
+     * @param aliases     the aliases for the command
      */
     public void registerExecutor(String commandName, BaseCommandExecutor executor, String... aliases) {
         PluginCommand command = CommandInjector.inject(commandName, commandName.toLowerCase(Locale.ROOT), aliases);
@@ -727,7 +815,7 @@ public class BattleArena extends JavaPlugin implements LoggerHolder, BattleArena
         }
     }
 
-    private void loadArenaMaps() {
+    public void loadArenaMaps(boolean proxy) {
         // All the arenas have been loaded, now we can load the maps
         Path mapsPath = this.getMapsPath();
         if (Files.notExists(mapsPath)) {
@@ -760,7 +848,9 @@ public class BattleArena extends JavaPlugin implements LoggerHolder, BattleArena
                             return;
                         }
 
-                        this.addArenaMap(arena, map);
+                        if (map.isRemote() || !proxy) {
+                            this.addArenaMap(arena, map);
+                        }
                         this.info("Loaded map {} for arena {}.", map.getName(), arena.getName());
                     } catch (IOException e) {
                         throw new RuntimeException("Error reading competition config", e);
@@ -790,7 +880,7 @@ public class BattleArena extends JavaPlugin implements LoggerHolder, BattleArena
         }
     }
 
-    private void loadConfig(boolean reload) {
+    public void loadConfig(boolean reload) {
         this.saveDefaultConfig();
 
         File configFile = new File(this.getDataFolder(), "config.yml");
@@ -805,6 +895,10 @@ public class BattleArena extends JavaPlugin implements LoggerHolder, BattleArena
                 this.getServer().getPluginManager().disablePlugin(this);
             }
         }
+    }
+
+    public Map<Arena, List<LiveCompetitionMap>> getArenaMaps() {
+        return arenaMaps;
     }
 
     public static SlotPool getMapPool() {

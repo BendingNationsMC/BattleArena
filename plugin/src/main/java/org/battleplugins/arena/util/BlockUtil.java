@@ -38,6 +38,14 @@ public final class BlockUtil {
             World oldWorld, World newWorld,
             Bounds srcBounds, Bounds dstBounds
     ) {
+        return copyToWorld(oldWorld, newWorld, srcBounds, dstBounds, null);
+    }
+
+    public static boolean copyToWorld(
+            World oldWorld, World newWorld,
+            Bounds srcBounds, Bounds dstBounds,
+            Runnable onComplete
+    ) {
         final Plugin plugin = BattleArena.getInstance();
 
         final CuboidRegion srcRegion = new CuboidRegion(
@@ -82,7 +90,12 @@ public final class BlockUtil {
             } catch (Throwable t) {
                 BattleArena.getInstance().error("Async FAWE copy failed", t);
             } finally {
-                Bukkit.getScheduler().runTask(plugin, guard::disable);
+                Bukkit.getScheduler().runTask(plugin, () -> {
+                    guard.disable();
+                    if (onComplete != null) {
+                        onComplete.run();
+                    }
+                });
             }
         });
 
@@ -112,6 +125,10 @@ public final class BlockUtil {
     }
 
     public static boolean pasteSchematic(String map, String arena, World world, Bounds bounds) {
+        return pasteSchematic(map, arena, world, bounds, null);
+    }
+
+    public static boolean pasteSchematic(String map, String arena, World world, Bounds bounds, Runnable onComplete) {
         final Plugin plugin = BattleArena.getInstance();
 
         final CuboidRegion region = new CuboidRegion(
@@ -173,7 +190,12 @@ public final class BlockUtil {
             } catch (Throwable t) {
                 BattleArena.getInstance().error("Async FAWE paste failed", t);
             } finally {
-                Bukkit.getScheduler().runTask(plugin, guard::disable);
+                Bukkit.getScheduler().runTask(plugin, () -> {
+                    guard.disable();
+                    if (onComplete != null) {
+                        onComplete.run();
+                    }
+                });
             }
         });
 

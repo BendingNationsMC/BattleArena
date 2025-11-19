@@ -14,8 +14,4 @@ public enum MapType {
      * same world.
      */
     DYNAMIC,
-    // /**
-    //  * A map that exists on a remote server.
-    //  */
-    // REMOTE
 }

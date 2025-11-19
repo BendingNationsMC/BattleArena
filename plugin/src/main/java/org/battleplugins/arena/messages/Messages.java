@@ -123,6 +123,12 @@ public final class Messages {
     public static final Message MAP_ADD_TEAM_SPAWN_ADDED = success("editor-map-add-team-spawn-added", "Added a spawn for team <secondary>{}</secondary>!");
     public static final Message MAP_MISSING_TEAM_SPAWNS = error("editor-map-missing-team-spawns", "You must add at least one spawn for each team! Teams with no spawns: <secondary>{}</secondary>");
     public static final Message MAP_ADD_TEAM_SPAWN_CLEARED = success("editor-map-add-team-spawn-cleared", "Cleared all spawns for team <secondary>{}</secondary>!");
+    public static final Message MAP_SET_REMOTE = info("editor-map-set-remote", """
+                Should this map be a proxy/remote map?
+
+                Type <secondary>true</secondary> to mark it as a proxy map,
+                or <secondary>false</secondary> to keep it local.
+                """);
     public static final Message MAP_CREATED = success("editor-map-created", "Successfully created map <secondary>{}</secondary> for {}!");
     public static final Message MAP_EDITED = success("editor-map-edited", "Successfully edited map <secondary>{}</secondary>!");
     public static final Message MAP_FAILED_TO_SAVE = error("editor-map-failed-to-save", "An error occurred saving map <secondary>{}</secondary>! Please see the console for errors.");

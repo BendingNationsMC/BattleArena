@@ -42,6 +42,33 @@ public class BattleArenaConfig {
     @ArenaOption(name = "debug-mode", description = "Whether debug mode is enabled.")
     private boolean debugMode;
 
+    @ArenaOption(name = "proxy-support", description = "Turns on proxy support.")
+    private boolean proxySupport;
+
+    @ArenaOption(name = "proxy-host", description = "Shares the map and arenas across the server.")
+    private boolean proxyHost;
+
+    @ArenaOption(name = "proxy-host-server", description = "Name of the proxy server that hosts proxy arenas (Bungee/Velocity backend).")
+    private String proxyHostServer;
+
+    @ArenaOption(name = "proxy-server-name", description = "This backend's proxy server name for returning players to their origin server.")
+    private String proxyServerName;
+
+    @ArenaOption(name = "redis-host", description = "Redis host for proxy messaging")
+    private String redisHost = "127.0.0.1";
+
+    @ArenaOption(name = "redis-port", description = "Redis port for proxy messaging")
+    private int redisPort = 6379;
+
+    @ArenaOption(name = "redis-password", description = "Redis password (blank for none)")
+    private String redisPassword = "";
+
+    @ArenaOption(name = "redis-database", description = "Redis database index for proxy messaging")
+    private int redisDatabase = 0;
+
+    @ArenaOption(name = "redis-channel", description = "Redis pub/sub channel for proxy messaging")
+    private String redisChannel = "battlearena:proxy";
+
     public String getConfigVersion() {
         return this.configVersion;
     }
@@ -76,6 +103,42 @@ public class BattleArenaConfig {
 
     public boolean isSchematicUsage() {
         return this.schematicUsage;
+    }
+
+    public boolean isProxyHost() {
+        return proxyHost;
+    }
+
+    public boolean isProxySupport() {
+        return proxySupport;
+    }
+
+    public String getProxyHostServer() {
+        return proxyHostServer;
+    }
+
+    public String getProxyServerName() {
+        return proxyServerName;
+    }
+
+    public String getRedisHost() {
+        return redisHost;
+    }
+
+    public int getRedisPort() {
+        return redisPort;
+    }
+
+    public String getRedisPassword() {
+        return redisPassword;
+    }
+
+    public int getRedisDatabase() {
+        return redisDatabase;
+    }
+
+    public String getRedisChannel() {
+        return redisChannel;
     }
 
     public static class Updater implements ConfigUpdater<BattleArenaConfig> {
