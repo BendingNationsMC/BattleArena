@@ -8,6 +8,8 @@ import org.battleplugins.arena.module.party.paf.PAFPartiesFeature;
 import org.battleplugins.arena.module.party.parties.PartiesPartiesFeature;
 import org.bukkit.Bukkit;
 import org.bukkit.event.EventHandler;
+import org.bukkit.plugin.Plugin;
+import org.bukkit.plugin.PluginManager;
 
 /**
  * A module that allows for hooking into various party plugins.
@@ -18,13 +20,23 @@ public class PartyIntegration implements ArenaModuleInitializer {
 
     @EventHandler
     public void onPostInitialize(BattleArenaPostInitializeEvent event) {
-        if (Bukkit.getPluginManager().isPluginEnabled("Spigot-Party-API-PAF")) {
-            Parties.register(new PAFPartiesFeature());
+        PluginManager pluginManager = Bukkit.getPluginManager();
 
-            event.getBattleArena().info("Parties for Friends (API) found. Using Spigot-Party-API-PAF for party integration.");
+        Plugin pafPlugin = pluginManager.getPlugin("Spigot-Party-API-PAF");
+        if (pafPlugin == null || !pafPlugin.isEnabled()) {
+            pafPlugin = pluginManager.getPlugin("PartyAndFriends");
+        }
+        if (pafPlugin == null || !pafPlugin.isEnabled()) {
+            pafPlugin = pluginManager.getPlugin("Party and Friends");
         }
 
-        if (Bukkit.getPluginManager().isPluginEnabled("Parties")) {
+        if (pafPlugin != null && pafPlugin.isEnabled()) {
+            Parties.register(new PAFPartiesFeature(pafPlugin));
+
+            event.getBattleArena().info("{} detected. Using Party and Friends integration.", pafPlugin.getName());
+        }
+
+        if (pluginManager.isPluginEnabled("Parties")) {
             Parties.register(new PartiesPartiesFeature());
 
             event.getBattleArena().info("Parties found. Using Parties for party integration.");

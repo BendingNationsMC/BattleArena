@@ -3,8 +3,10 @@ package org.battleplugins.arena.event.action.types;
 import org.battleplugins.arena.ArenaPlayer;
 import org.battleplugins.arena.competition.Competition;
 import org.battleplugins.arena.competition.map.options.TeamSpawns;
+import org.battleplugins.arena.competition.LiveCompetition;
 import org.battleplugins.arena.event.action.EventAction;
 import org.battleplugins.arena.resolver.Resolvable;
+import org.battleplugins.arena.team.ArenaTeam;
 import org.battleplugins.arena.util.PositionWithRotation;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
@@ -47,6 +49,14 @@ public class TeleportAction extends EventAction {
                 Map<String, TeamSpawns> teamSpawns = arenaPlayer.getCompetition().getMap().getSpawns().getTeamSpawns();
                 if (teamSpawns == null) {
                     throw new IllegalArgumentException("Team spawns not defined for competition");
+                }
+
+                LiveCompetition<?> competition = arenaPlayer.getCompetition();
+                if (arenaPlayer.getTeam() == null) {
+                    ArenaTeam fallback = competition.getTeamManager().findSuitableTeam();
+                    if (fallback != null) {
+                        competition.getTeamManager().joinTeam(arenaPlayer, fallback);
+                    }
                 }
 
                 if (arenaPlayer.getTeam() == null) {

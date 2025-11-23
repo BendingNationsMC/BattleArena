@@ -4,6 +4,7 @@ public enum MapOption implements EditorKey {
     NAME("name"),
     TYPE("type"),
     REMOTE("remote"),
+    MATCHUPS("matchups"),
     MIN_POS("minPos"),
     MAX_POS("maxPos"),
     WAITROOM_SPAWN("waitroomSpawn"),

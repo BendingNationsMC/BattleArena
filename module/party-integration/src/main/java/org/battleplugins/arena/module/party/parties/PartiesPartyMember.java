@@ -26,7 +26,7 @@ public class PartiesPartyMember implements PartyMember {
 
     @Override
     public Party getParty() {
-        com.alessiodp.parties.api.interfaces.Party party = Parties.getApi().getPartyOfPlayer(this.impl.getPlayerUUID());
+        com.alessiodp.parties.api.interfaces.Party party = PartiesPartiesFeature.resolveParty(this.impl.getPlayerUUID());
         if (party == null) {
             return null;
         }

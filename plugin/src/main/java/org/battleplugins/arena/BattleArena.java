@@ -27,6 +27,7 @@ import org.bukkit.GameRule;
 import org.bukkit.World;
 import org.bukkit.WorldCreator;
 import org.bukkit.command.PluginCommand;
+import org.bukkit.command.TabExecutor;
 import org.bukkit.configuration.Configuration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
@@ -79,6 +80,9 @@ public class BattleArena extends JavaPlugin implements LoggerHolder, BattleArena
     private static final SlotPool MAP_POOL = new SlotPool();
     private Connector connector;
     private boolean initialized;
+    private final Set<java.util.UUID> pendingProxyJoins = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    // Optional ranked API provided by the ranked module.
+    private org.battleplugins.arena.ranked.RankedApi rankedApi;
 
 
     @Override
@@ -148,6 +152,14 @@ public class BattleArena extends JavaPlugin implements LoggerHolder, BattleArena
         }
 
         command.setExecutor(new BACommandExecutor("battlearena"));
+
+        // Global stats command (leverages ranked module if present)
+        org.battleplugins.arena.command.StatsCommandExecutor statsExecutor = new org.battleplugins.arena.command.StatsCommandExecutor(this);
+        PluginCommand statsCommand = CommandInjector.inject("stats", "stats");
+        TabExecutor statsBridge = statsExecutor.standaloneExecutor();
+        statsCommand.setExecutor(statsBridge);
+        statsCommand.setTabCompleter(statsBridge);
+        CommandInjector.registerPermissions("stats", statsExecutor);
 
         // Loads all arena loaders
         this.loadArenaLoaders(this.arenasPath);
@@ -225,6 +237,7 @@ public class BattleArena extends JavaPlugin implements LoggerHolder, BattleArena
         this.arenas.clear();
         this.arenaMaps.clear();
         this.arenaLoaders.clear();
+        this.pendingProxyJoins.clear();
 
         if (this.connector != null) {
             try {
@@ -237,6 +250,8 @@ public class BattleArena extends JavaPlugin implements LoggerHolder, BattleArena
         this.config = null;
         this.teams = null;
         this.initialized = false;
+
+        this.rankedApi = null;
     }
 
     void postInitialize() {
@@ -903,6 +918,32 @@ public class BattleArena extends JavaPlugin implements LoggerHolder, BattleArena
 
     public static SlotPool getMapPool() {
         return MAP_POOL;
+    }
+
+    public boolean isPendingProxyJoin(java.util.UUID id) {
+        return this.pendingProxyJoins.contains(id);
+    }
+
+    public void addPendingProxyJoin(java.util.UUID id) {
+        this.pendingProxyJoins.add(id);
+    }
+
+    public void addPendingProxyJoins(Collection<Player> players) {
+        for (Player player : players) {
+            this.pendingProxyJoins.add(player.getUniqueId());
+        }
+    }
+
+    public org.battleplugins.arena.ranked.RankedApi getRankedApi() {
+        return this.rankedApi;
+    }
+
+    public void setRankedApi(org.battleplugins.arena.ranked.RankedApi api) {
+        this.rankedApi = api;
+    }
+
+    public void removePendingProxyJoin(java.util.UUID id) {
+        this.pendingProxyJoins.remove(id);
     }
 
     /**

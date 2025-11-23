@@ -22,6 +22,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -376,9 +377,14 @@ public class Connector {
                     }
                 }
 
+                java.util.Set<java.util.UUID> requesterParty = parseRoster(object, "requesterParty", requester);
+                java.util.Set<java.util.UUID> targetParty = parseRoster(object, "targetParty", target);
+
+                String origin = object.has("origin") ? object.get("origin").getAsString() : null;
+
                 Bukkit.getScheduler().runTask(plugin, () -> {
                     org.bukkit.Bukkit.getPluginManager().callEvent(
-                            new org.battleplugins.arena.proxy.ProxyDuelRequestEvent(arena, requester, target)
+                            new org.battleplugins.arena.proxy.ProxyDuelRequestEvent(arena, requester, target, requesterParty, targetParty, origin)
                     );
                 });
 
@@ -390,6 +396,7 @@ public class Connector {
             case "queue_match": {
                 String arenaName = object.get("arena").getAsString();
                 String mapName = object.get("map").getAsString();
+                boolean duel = object.has("duel") && object.get("duel").getAsBoolean();
                 String origin = object.has("origin") ? object.get("origin").getAsString() : "";
 
                 org.battleplugins.arena.Arena arena = plugin.getArena(arenaName);
@@ -401,6 +408,9 @@ public class Connector {
                 JsonArray playersArray = object.getAsJsonArray("players");
 
                 if (plugin.getMainConfig().isProxyHost()) {
+                    if (duel) {
+                        break;
+                    }
                     java.util.List<org.battleplugins.arena.proxy.SerializedPlayer> players = new java.util.ArrayList<>();
                     playersArray.forEach(el -> {
                         JsonObject playerObject = el.getAsJsonObject();
@@ -457,6 +467,7 @@ public class Connector {
                         java.util.UUID id = java.util.UUID.fromString(uuid);
                         org.bukkit.entity.Player player = Bukkit.getPlayer(id);
                         if (player != null) {
+                            plugin.removePendingProxyJoin(player.getUniqueId());
                             plugin.sendPlayerToProxyHost(player);
                         }
                     });
@@ -472,7 +483,7 @@ public class Connector {
 
                 String arenaName = object.get("arena").getAsString();
                 String mapName = object.get("map").getAsString();
-
+                boolean duel = object.has("duel") && object.get("duel").getAsBoolean();
                 org.battleplugins.arena.Arena arena = plugin.getArena(arenaName);
                 if (arena == null) {
                     log.warn("Received proxy arena_join for unknown arena '{}'.", arenaName);
@@ -544,12 +555,12 @@ public class Connector {
                             return;
                         }
 
-                        sendQueueMatchForPlayers(arena, competition.getMap().getName(), origin, players);
+                        sendQueueMatchForPlayers(arena, competition.getMap().getName(), origin, players, duel);
                     });
                 } else {
                     // Static remote map: it's already present; just reuse the same queue_match
                     // pipeline so non-host servers only move players once the host is ready.
-                    sendQueueMatchForPlayers(arena, map.getName(), origin, players);
+                    sendQueueMatchForPlayers(arena, map.getName(), origin, players, duel);
                 }
 
                 break;
@@ -634,14 +645,43 @@ public class Connector {
         disconnect();
     }
 
+    private static java.util.Set<java.util.UUID> parseRoster(JsonObject payload,
+                                                            String field,
+                                                            org.battleplugins.arena.proxy.SerializedPlayer fallback) {
+        java.util.Set<java.util.UUID> roster = new LinkedHashSet<>();
+        try {
+            roster.add(java.util.UUID.fromString(fallback.getUuid()));
+        } catch (IllegalArgumentException ignored) {
+        }
+
+        if (payload.has(field) && payload.get(field).isJsonArray()) {
+            payload.getAsJsonArray(field).forEach(element -> {
+                if (!element.isJsonPrimitive()) {
+                    return;
+                }
+
+                try {
+                    roster.add(java.util.UUID.fromString(element.getAsString()));
+                } catch (IllegalArgumentException ignored) {
+                }
+            });
+        }
+
+        return roster;
+    }
+
     private void sendQueueMatchForPlayers(org.battleplugins.arena.Arena arena,
                                            String readyMapName,
                                            String origin,
-                                           java.util.List<org.battleplugins.arena.proxy.SerializedPlayer> players) {
+                                           java.util.List<org.battleplugins.arena.proxy.SerializedPlayer> players,
+                                           boolean duel) {
         JsonObject payload = new JsonObject();
         payload.addProperty("type", "queue_match");
         payload.addProperty("arena", arena.getName());
         payload.addProperty("map", readyMapName);
+        if (duel) {
+            payload.addProperty("duel", true);
+        }
         if (origin != null && !origin.isEmpty()) {
             payload.addProperty("origin", origin);
         }

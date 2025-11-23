@@ -12,6 +12,7 @@ import org.battleplugins.arena.event.arena.ArenaCreateExecutorEvent;
 import org.battleplugins.arena.module.ArenaModule;
 import org.battleplugins.arena.module.ArenaModuleInitializer;
 import org.battleplugins.arena.options.Teams;
+import org.battleplugins.arena.proxy.Elements;
 import org.battleplugins.arena.proxy.ProxyQueueJoinEvent;
 import org.battleplugins.arena.proxy.SerializedPlayer;
 import org.battleplugins.arena.util.IntRange;
@@ -20,6 +21,8 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.scheduler.BukkitTask;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -37,7 +40,9 @@ public class QueueModule implements ArenaModuleInitializer {
 
     // arenaName -> originServer -> queued players
     private static final Map<String, Map<String, List<SerializedPlayer>>> QUEUES = new ConcurrentHashMap<>();
-    private final java.util.Set<java.util.UUID> localQueued = new java.util.HashSet<>();
+    private static final Logger log = LoggerFactory.getLogger(QueueModule.class);
+    // Local queued tracker per backend for /<arena> queue toggling
+    private final Set<UUID> localQueued = ConcurrentHashMap.newKeySet();
 
     private static BukkitTask scannerTask;
 
@@ -139,6 +144,7 @@ public class QueueModule implements ArenaModuleInitializer {
         }
 
         localQueued.remove(event.getPlayer().getUniqueId());
+        plugin.removePendingProxyJoin(event.getPlayer().getUniqueId());
         Player player = event.getPlayer();
         String uuid = player.getUniqueId().toString();
 
@@ -188,28 +194,25 @@ public class QueueModule implements ArenaModuleInitializer {
             IntRange teamAmount = teams.getTeamAmount();
 
             int minPlayers = Math.max(1, teamSize.getMin() * teamAmount.getMin());
-            int maxPlayers;
+            int maxPlayersBase;
             if (teamSize.getMax() == Integer.MAX_VALUE || teamAmount.getMax() == Integer.MAX_VALUE) {
-                maxPlayers = Integer.MAX_VALUE;
+                maxPlayersBase = Integer.MAX_VALUE;
             } else {
-                maxPlayers = teamSize.getMax() * teamAmount.getMax();
+                maxPlayersBase = teamSize.getMax() * teamAmount.getMax();
             }
 
             // Prefer proxy/remote maps for queued games.
-            List<LiveCompetitionMap> remoteMaps = plugin.getMaps(arena)
+            List<LiveCompetitionMap> remoteMaps = new ArrayList<>(plugin.getMaps(arena)
                     .stream()
                     .filter(LiveCompetitionMap::isRemote)
-                    .toList();
+                    .toList());
 
             if (remoteMaps.isEmpty()) {
                 continue;
             }
 
-            LiveCompetitionMap map = remoteMaps.get(0);
-            Spawns spawns = map.getSpawns();
-            if (spawns != null && spawns.getSpawnPointCount() > 0 && maxPlayers != Integer.MAX_VALUE) {
-                maxPlayers = Math.min(maxPlayers, spawns.getSpawnPointCount());
-            }
+            // Shuffle maps so that selection order is randomized.
+            Collections.shuffle(remoteMaps);
 
             for (Map.Entry<String, List<SerializedPlayer>> originEntry : arenaEntry.getValue().entrySet()) {
                 String origin = originEntry.getKey();
@@ -222,14 +225,34 @@ public class QueueModule implements ArenaModuleInitializer {
                     }
 
                     // Take up to the maximum players the arena/map can handle for a single match.
-                    int count = Math.min(maxPlayers, queue.size());
+                    int count = Math.min(maxPlayersBase, queue.size());
                     for (int i = 0; i < count; i++) {
-                        batch.add(queue.remove(0));
+                        batch.add(queue.removeFirst());
                     }
                 }
 
                 if (batch.isEmpty()) {
                     continue;
+                }
+
+                // Choose a map for this batch based on matchups and shuffle order.
+                LiveCompetitionMap map = selectMapForBatch(remoteMaps, batch);
+                if (map == null) {
+                    // No map exists whose matchups fit all players in this batch; requeue
+                    // them at the front and wait for a better combination.
+                    synchronized (queue) {
+                        for (int i = batch.size() - 1; i >= 0; i--) {
+                            queue.addFirst(batch.get(i));
+                        }
+                    }
+                    continue;
+                }
+
+                // Adjust maxPlayers by spawn count for the selected map.
+                int maxPlayers = maxPlayersBase;
+                Spawns spawns = map.getSpawns();
+                if (spawns != null && spawns.getSpawnPointCount() > 0 && maxPlayers != Integer.MAX_VALUE) {
+                    maxPlayers = Math.min(maxPlayers, spawns.getSpawnPointCount());
                 }
 
                 if (map.getType() == org.battleplugins.arena.competition.map.MapType.DYNAMIC) {
@@ -241,7 +264,7 @@ public class QueueModule implements ArenaModuleInitializer {
                             // In case of failure, requeue the players at the front so they can try again later.
                             synchronized (queue) {
                                 for (int i = batch.size() - 1; i >= 0; i--) {
-                                    queue.add(0, batch.get(i));
+                                    queue.addFirst(batch.get(i));
                                 }
                             }
                             return;
@@ -256,6 +279,43 @@ public class QueueModule implements ArenaModuleInitializer {
                 }
             }
         }
+    }
+
+    private LiveCompetitionMap selectMapForBatch(List<LiveCompetitionMap> maps, List<SerializedPlayer> batch) {
+        for (LiveCompetitionMap map : maps) {
+            List<Elements> matchups = map.getMatchups();
+            if (matchups.isEmpty()) {
+                continue;
+            }
+
+            boolean allMatch = true;
+            for (SerializedPlayer sp : batch) {
+                if (sp.getElements().isEmpty()) {
+                    allMatch = false;
+                    break;
+                }
+
+                boolean any = false;
+                for (org.battleplugins.arena.proxy.Elements element : sp.getElements()) {
+                    if (matchups.contains(element)) {
+                        any = true;
+                        break;
+                    }
+                }
+
+                if (!any) {
+                    allMatch = false;
+                    break;
+                }
+            }
+
+            if (allMatch) {
+                return map;
+            }
+        }
+
+        // No map found where all players fit the matchups
+        return null;
     }
 
     private void sendQueueMatch(BattleArena plugin,
@@ -296,7 +356,7 @@ public class QueueModule implements ArenaModuleInitializer {
         plugin.getConnector().sendToRouter(payload.toString());
     }
 
-    public Set<UUID> getLocalQueued() {
+    Set<UUID> getLocalQueued() {
         return localQueued;
     }
 }

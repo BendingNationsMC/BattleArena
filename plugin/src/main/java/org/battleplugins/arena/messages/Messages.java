@@ -85,6 +85,7 @@ public final class Messages {
     public static final Message TEAM_SELECTION_NOT_AVAILABLE = error("arena-team-selection-not-available", "Team selection is not available at this time!");
     public static final Message CANNOT_JOIN_ARENA_NOT_PARTY_LEADER = error("arena-cannot-join-arena-not-party-leader", "You must be the party leader to join an arena!");
     public static final Message CANNOT_JOIN_ARENA_MEMBER_IN_ARENA = error("arena-cannot-join-arena-member-in-arena", "You cannot join an arena while a party member is in an arena!");
+    public static final Message QUEUE_CANNOT_QUEUE_IN_PARTY = error("queue-cannot-queue-in-party", "You cannot queue while in a party. Use duels instead.");
 
     public static final Message ARENA_STARTS_IN = info("arena-starts-in", "{} will start in <secondary>{}</secondary>!");
     public static final Message ARENA_START_CANCELLED = error("arena-starts-cancelled", "Countdown cancelled as there is not enough players to start!");
@@ -128,6 +129,11 @@ public final class Messages {
 
                 Type <secondary>true</secondary> to mark it as a proxy map,
                 or <secondary>false</secondary> to keep it local.
+                """);
+    public static final Message MAP_SET_MATCHUPS = info("editor-map-set-matchups", """
+                Enter a comma-separated list of elements this map is targeted to, or leave blank for none.
+
+                Valid options: <secondary>AIR, WATER, EARTH, FIRE, CHI</secondary>.
                 """);
     public static final Message MAP_CREATED = success("editor-map-created", "Successfully created map <secondary>{}</secondary> for {}!");
     public static final Message MAP_EDITED = success("editor-map-edited", "Successfully edited map <secondary>{}</secondary>!");

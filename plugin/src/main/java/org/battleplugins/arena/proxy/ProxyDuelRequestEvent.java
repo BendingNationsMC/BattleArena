@@ -5,6 +5,8 @@ import org.bukkit.event.Event;
 import org.bukkit.event.HandlerList;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -18,11 +20,22 @@ public class ProxyDuelRequestEvent extends Event {
     private final Arena arena;
     private final SerializedPlayer requester;
     private final SerializedPlayer target;
+    private final List<UUID> requesterParty;
+    private final List<UUID> targetParty;
+    private final String originServer;
 
-    public ProxyDuelRequestEvent(Arena arena, SerializedPlayer requester, SerializedPlayer target) {
+    public ProxyDuelRequestEvent(Arena arena,
+                                 SerializedPlayer requester,
+                                 SerializedPlayer target,
+                                 Collection<UUID> requesterParty,
+                                 Collection<UUID> targetParty,
+                                 String originServer) {
         this.arena = arena;
         this.requester = requester;
         this.target = target;
+        this.requesterParty = List.copyOf(requesterParty);
+        this.targetParty = List.copyOf(targetParty);
+        this.originServer = originServer;
     }
 
     public Arena getArena() {
@@ -43,6 +56,18 @@ public class ProxyDuelRequestEvent extends Event {
 
     public UUID getTargetUuid() {
         return UUID.fromString(target.getUuid());
+    }
+
+    public List<UUID> getRequesterPartyMembers() {
+        return this.requesterParty;
+    }
+
+    public List<UUID> getTargetPartyMembers() {
+        return this.targetParty;
+    }
+
+    public String getOriginServer() {
+        return this.originServer;
     }
 
     @NotNull

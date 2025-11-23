@@ -9,6 +9,7 @@ import org.battleplugins.arena.competition.map.options.Spawns;
 import org.battleplugins.arena.competition.map.options.TeamSpawns;
 import org.battleplugins.arena.editor.ArenaEditorWizard;
 import org.battleplugins.arena.editor.EditorContext;
+import org.battleplugins.arena.proxy.Elements;
 import org.battleplugins.arena.team.ArenaTeam;
 import org.battleplugins.arena.util.IntRange;
 import org.battleplugins.arena.util.PositionWithRotation;
@@ -26,6 +27,7 @@ public class MapCreateContext extends EditorContext<MapCreateContext> {
     private Position min;
     private Position max;
     private boolean remote;
+    private List<Elements> matchups = new ArrayList<>();
 
     private PositionWithRotation waitroomSpawn;
     private PositionWithRotation spectatorSpawn;
@@ -74,6 +76,14 @@ public class MapCreateContext extends EditorContext<MapCreateContext> {
 
     public void setRemote(boolean remote) {
         this.remote = remote;
+    }
+
+    public List<Elements> getMatchups() {
+        return this.matchups;
+    }
+
+    public void setMatchups(List<Elements> matchups) {
+        this.matchups = matchups == null ? new ArrayList<>() : new ArrayList<>(matchups);
     }
 
     public PositionWithRotation getWaitroomSpawn() {
@@ -150,6 +160,7 @@ public class MapCreateContext extends EditorContext<MapCreateContext> {
         this.min = Position.block(bounds.getMinX(), bounds.getMinY(), bounds.getMinZ());
         this.max = Position.block(bounds.getMaxX(), bounds.getMaxY(), bounds.getMaxZ());
         this.remote = map.isRemote();
+        this.matchups = new ArrayList<>(map.getMatchups());
 
         Spawns spawns = map.getSpawns();
         if (spawns == null) {
@@ -186,6 +197,7 @@ public class MapCreateContext extends EditorContext<MapCreateContext> {
 
         map.setSpawns(spawns);
         map.setRemote(this.remote);
+        map.setMatchups(this.matchups);
     }
 
     @Override

@@ -116,6 +116,16 @@ public class ArenaCommandExecutor extends BaseCommandExecutor {
             players = Set.of(player);
         }
 
+        // If any player is already waiting for a proxy map to be prepared,
+        // do not allow joining again as this can cause bugs.
+        BattleArena plugin = this.arena.getPlugin();
+        for (Player toJoin : players) {
+            if (plugin.isPendingProxyJoin(toJoin.getUniqueId())) {
+                Messages.ARENA_ERROR.send(player, "A proxy map is currently loading for you. Please wait.");
+                return;
+            }
+        }
+
         // If any player is already in an arena, deny them entry
         for (Player toJoin : players) {
             if (ArenaPlayer.getArenaPlayer(toJoin) != null) {
@@ -577,6 +587,12 @@ public class ArenaCommandExecutor extends BaseCommandExecutor {
         }
 
         if (plugin.getConnector() != null) {
+            // Mark players as pending a proxy join and notify them that the map is being prepared.
+            plugin.addPendingProxyJoins(players);
+            for (Player player : players) {
+                Messages.ARENA_ERROR.send(player, "Preparing arena on proxy host. Please wait...");
+            }
+
             JsonObject payload = new JsonObject();
             payload.addProperty("type", "arena_join");
             payload.addProperty("arena", this.arena.getName());

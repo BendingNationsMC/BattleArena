@@ -58,6 +58,48 @@ public final class ArenaEditorWizards {
                         ctx.setRemote(remote);
                     }
             ))
+            .addStage(MapOption.MATCHUPS, new TextInputStage<>(
+                    Messages.MAP_SET_MATCHUPS,
+                    Messages.INVALID_INPUT.withContext("AIR, WATER, EARTH, FIRE, CHI"),
+                    (ctx, input) -> {
+                        String trimmed = input.trim();
+                        if (trimmed.isEmpty()) {
+                            return true; // No matchups specified
+                        }
+                        String[] parts = trimmed.split(",");
+                        for (String part : parts) {
+                            String name = part.trim().toUpperCase(Locale.ROOT);
+                            if (name.isEmpty()) {
+                                continue;
+                            }
+                            try {
+                                org.battleplugins.arena.proxy.Elements.valueOf(name);
+                            } catch (IllegalArgumentException ex) {
+                                return false;
+                            }
+                        }
+                        return true;
+                    },
+                    ctx -> input -> {
+                        String trimmed = input.trim();
+                        List<org.battleplugins.arena.proxy.Elements> elements = new java.util.ArrayList<>();
+                        if (!trimmed.isEmpty()) {
+                            String[] parts = trimmed.split(",");
+                            for (String part : parts) {
+                                String name = part.trim().toUpperCase(Locale.ROOT);
+                                if (name.isEmpty()) {
+                                    continue;
+                                }
+                                try {
+                                    elements.add(org.battleplugins.arena.proxy.Elements.valueOf(name));
+                                } catch (IllegalArgumentException ignored) {
+                                    // already validated, so this shouldn't happen
+                                }
+                            }
+                        }
+                        ctx.setMatchups(elements);
+                    }
+            ))
             .addStage(MapOption.MIN_POS, new PositionInputStage<>(Messages.MAP_SET_MIN_POSITION, ctx -> ctx::setMin))
             .addStage(MapOption.MAX_POS, new PositionInputStage<>(Messages.MAP_SET_MAX_POSITION, ctx -> ctx::setMax))
             .addStage(MapOption.WAITROOM_SPAWN, new SpawnInputStage<>(Messages.MAP_SET_WAITROOM_SPAWN, "waitroom", ctx -> ctx::setWaitroomSpawn))
@@ -116,7 +158,8 @@ public final class ArenaEditorWizards {
                 ctx.getSpawns().forEach((team, spawns) -> teamSpawns.put(team, new TeamSpawns(spawns)));
                 Spawns spawns = new Spawns(ctx.getWaitroomSpawn(), ctx.getSpectatorSpawn(), teamSpawns);
 
-                LiveCompetitionMap map = ctx.getArena().getMapFactory().create(ctx.getMapName(), ctx.getArena(), ctx.getMapType(), ctx.getPlayer().getWorld().getName(), bounds, spawns, ctx.isRemote());
+                LiveCompetitionMap map = ctx.getArena().getMapFactory().create(ctx.getMapName(), ctx.getArena(), ctx.getMapType(), ctx.getPlayer().getWorld().getName(), bounds, spawns,
+                        ctx.isRemote(), ctx.getMatchups());
                 map.postProcess(); // Call post process to ensure all data is loaded
 
                 BattleArena.getInstance().addArenaMap(ctx.getArena(), map);

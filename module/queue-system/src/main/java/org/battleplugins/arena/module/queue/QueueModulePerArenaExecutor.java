@@ -7,6 +7,8 @@ import org.battleplugins.arena.ArenaPlayer;
 import org.battleplugins.arena.BattleArena;
 import org.battleplugins.arena.command.ArenaCommand;
 import org.battleplugins.arena.command.SubCommandExecutor;
+import org.battleplugins.arena.feature.party.Parties;
+import org.battleplugins.arena.feature.party.Party;
 import org.battleplugins.arena.messages.Messages;
 import org.battleplugins.arena.proxy.SerializedPlayer;
 import org.bukkit.entity.Player;
@@ -31,6 +33,17 @@ public class QueueModulePerArenaExecutor implements SubCommandExecutor {
     public void queue(Player player) {
         BattleArena plugin = arena.getPlugin();
 
+        if (plugin.isPendingProxyJoin(player.getUniqueId())) {
+            Messages.ARENA_ERROR.send(player, "A proxy map is currently loading for you. Please wait.");
+            return;
+        }
+
+        Party party = Parties.getParty(player.getUniqueId());
+        if (party != null) {
+            Messages.QUEUE_CANNOT_QUEUE_IN_PARTY.send(player);
+            return;
+        }
+
         boolean proxySupport = plugin.getMainConfig().isProxySupport();
         if (!proxySupport) {
             // Fallback: just use normal join when proxy support is disabled.
@@ -45,6 +58,8 @@ public class QueueModulePerArenaExecutor implements SubCommandExecutor {
             module.getLocalQueued().add(playerId);
         } else {
             module.getLocalQueued().remove(playerId);
+            // Leaving the queue locally; clear any pending proxy join state.
+            plugin.removePendingProxyJoin(playerId);
         }
 
         String origin = plugin.getMainConfig().getProxyServerName();

@@ -18,6 +18,7 @@ import org.battleplugins.arena.messages.Messages;
 import org.battleplugins.arena.util.PaginationCalculator;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.World;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
@@ -30,15 +31,7 @@ import org.jetbrains.annotations.Nullable;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
@@ -492,7 +485,22 @@ public class BaseCommandExecutor implements TabExecutor {
                 return Bukkit.getPlayer(arg);
             }
             case "offlineplayer" -> {
-                return Bukkit.getOfflinePlayer(arg);
+                String input = arg.trim();
+
+                Player online = Bukkit.getPlayerExact(input);
+                if (online != null) {
+                    return online; // Player is also an OfflinePlayer
+                }
+
+                try {
+                    UUID uuid = UUID.fromString(input);
+                    return Bukkit.getOfflinePlayer(uuid);
+                } catch (IllegalArgumentException ignored) {
+                    // Not a UUID, move on
+                }
+
+                OfflinePlayer offline = Bukkit.getOfflinePlayer(input);
+                return offline;
             }
             case "world" -> {
                 return Bukkit.getWorld(arg);

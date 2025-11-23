@@ -11,6 +11,7 @@ import org.battleplugins.arena.config.ArenaConfigSerializer;
 import org.battleplugins.arena.config.ArenaOption;
 import org.battleplugins.arena.config.ParseException;
 import org.battleplugins.arena.config.PostProcessable;
+import org.battleplugins.arena.proxy.Elements;
 import org.battleplugins.arena.util.BlockUtil;
 import org.battleplugins.arena.util.Util;
 import org.bukkit.Bukkit;
@@ -23,6 +24,7 @@ import org.jetbrains.annotations.Nullable;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 
@@ -50,6 +52,9 @@ public class LiveCompetitionMap implements ArenaLike, CompetitionMap, PostProces
     @ArenaOption(name = "spawns", description = "The spawn locations.")
     private Spawns spawns;
 
+    @ArenaOption(name = "matchups", description = "Elements this map is targeted to.")
+    private List<Elements> matchups;
+
     private World mapWorld;
     private World parentWorld;
     private int offset;
@@ -74,9 +79,11 @@ public class LiveCompetitionMap implements ArenaLike, CompetitionMap, PostProces
      * Convenience constructor allowing the proxy/remote flag to be set
      * at creation time.
      */
-    public LiveCompetitionMap(String name, Arena arena, MapType type, String world, @Nullable Bounds bounds, @Nullable Spawns spawns, boolean remote) {
+    public LiveCompetitionMap(String name, Arena arena, MapType type, String world, @Nullable Bounds bounds, @Nullable Spawns spawns, boolean remote,
+                              List<Elements> matchups) {
         this(name, arena, type, world, bounds, spawns);
         this.remote = remote;
+        this.matchups = matchups;
     }
 
     @Override
@@ -88,6 +95,24 @@ public class LiveCompetitionMap implements ArenaLike, CompetitionMap, PostProces
         this.mapWorld = Bukkit.getWorld(this.world);
         if (this.mapWorld == null && !remote) {
             throw new IllegalStateException("World " + this.world + " for map " + this.name + " in arena " + this.arena.getName() + " does not exist!");
+        }
+
+        // Normalize matchups list so it always contains Elements values even if the
+        // configuration was loaded as strings by the parser.
+        if (this.matchups != null && !this.matchups.isEmpty()) {
+            java.util.List<Elements> normalized = new java.util.ArrayList<>();
+            for (Object o : this.matchups) {
+                if (o instanceof Elements e) {
+                    normalized.add(e);
+                } else if (o instanceof String s) {
+                    try {
+                        normalized.add(Elements.valueOf(s.toUpperCase(Locale.ROOT)));
+                    } catch (IllegalArgumentException ignored) {
+                        // Ignore unknown or invalid element names
+                    }
+                }
+            }
+            this.matchups = normalized;
         }
     }
 
@@ -230,6 +255,27 @@ public class LiveCompetitionMap implements ArenaLike, CompetitionMap, PostProces
     }
 
     /**
+     * Returns the elements this map is targeted to.
+     * <p>
+     * This can be used by matchmaking logic to prefer
+     * certain maps for players with matching elements.
+     *
+     * @return an immutable list of targeted elements
+     */
+    public final List<Elements> getMatchups() {
+        return this.matchups == null ? List.of() : List.copyOf(this.matchups);
+    }
+
+    /**
+     * Sets the elements this map is targeted to.
+     *
+     * @param matchups list of elements, or null for none
+     */
+    public final void setMatchups(List<Elements> matchups) {
+        this.matchups = matchups == null ? null : new java.util.ArrayList<>(matchups);
+    }
+
+    /**
      * Sets the spawn locations of the map.
      *
      * @param spawns the spawn locations of the map
@@ -281,7 +327,8 @@ public class LiveCompetitionMap implements ArenaLike, CompetitionMap, PostProces
                 BattleArena.instancesWorld().getName(),
                 shiftedBounds,
                 shiftedSpawns,
-                this.remote
+                this.remote,
+                this.matchups
         );
 
         copy.slot = slot;
@@ -339,7 +386,8 @@ public class LiveCompetitionMap implements ArenaLike, CompetitionMap, PostProces
                         BattleArena.instancesWorld().getName(),
                         shiftedBounds,
                         shiftedSpawns,
-                        this.remote
+                        this.remote,
+                        this.matchups
                 );
 
                 copy.slot = slot;
