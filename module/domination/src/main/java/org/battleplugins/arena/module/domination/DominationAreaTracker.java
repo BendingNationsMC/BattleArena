@@ -10,14 +10,26 @@ import org.battleplugins.arena.feature.hologram.Holograms;
 import org.battleplugins.arena.module.domination.config.DominationAreaDefinition;
 import org.battleplugins.arena.module.domination.config.RewardType;
 import org.battleplugins.arena.team.ArenaTeam;
-import org.bukkit.*;
+import org.bukkit.Bukkit;
+import org.bukkit.GameMode;
+import org.bukkit.Location;
+import org.bukkit.Particle;
+import org.bukkit.World;
 import org.bukkit.boss.BarColor;
 import org.bukkit.boss.BarStyle;
 import org.bukkit.boss.BossBar;
 import org.bukkit.entity.Player;
 
 import java.time.Duration;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
 
 /**
  * Runtime tracker for a domination area.
@@ -262,31 +274,30 @@ final class DominationAreaTracker {
 
         long tick = this.visualTick++;
         double baseAngle = tick * 0.12D;
-
         int outerStrands = 5;
-        int radialWaves = 4;
-        int verticalWaves = 4;
-
         double swirlHeight = Math.max(1.25D, this.radius * 0.6D);
         Particle.DustOptions dust = this.resolveDustOptions();
 
         for (int strand = 0; strand < outerStrands; strand++) {
-            double strandOffset = (Math.PI * 2D / outerStrands) * strand;
-
-            double angle = baseAngle + strandOffset;
-
-            double radialAngle = angle * radialWaves;
-            double verticalAngle = angle * verticalWaves;
-
-            double dynamicRadius = this.radius * (0.85D + 0.18D * Math.sin(radialAngle));
+            double angle = baseAngle + strand * ((Math.PI * 2) / outerStrands);
+            double dynamicRadius = this.radius * (0.85D + 0.18D * Math.sin(angle * 0.5D));
             double x = centerX + Math.cos(angle) * dynamicRadius;
             double z = centerZ + Math.sin(angle) * dynamicRadius;
-
-            double y = centerY + 0.3D + ((Math.sin(verticalAngle) + 1D) * (swirlHeight / 3D));
+            double y = centerY + 0.3D + ((Math.sin(angle * 1.5D) + 1D) * (swirlHeight / 3D));
 
             world.spawnParticle(Particle.valueOf("DUST"), x, y, z, 1, 0D, 0D, 0D, 0D, dust);
         }
 
+        double reverseBaseAngle = -baseAngle * 1.15D;
+        int innerStrands = 4;
+        for (int strand = 0; strand < innerStrands; strand++) {
+            double angle = reverseBaseAngle + strand * ((Math.PI * 2) / innerStrands);
+            double x = centerX + Math.cos(angle) * radius;
+            double z = centerZ + Math.sin(angle) * radius;
+            double y = centerY + 0.25D + (strand * 0.15D);
+
+            world.spawnParticle(Particle.END_ROD, x, y, z, 1, 0D, 0D, 0D, 0D);
+        }
     }
 
     private Particle.DustOptions resolveDustOptions() {
