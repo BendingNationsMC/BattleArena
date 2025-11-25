@@ -10,6 +10,8 @@ modules:
   - classes
   - duels
   - scoreboards
+domination:
+  active-phase: ingame
 lives:
   enabled: false
 victory-conditions:

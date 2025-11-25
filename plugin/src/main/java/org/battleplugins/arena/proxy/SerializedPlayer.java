@@ -6,6 +6,7 @@ import com.projectkorra.projectkorra.ProjectKorra;
 import com.projectkorra.projectkorra.board.BendingBoard;
 import com.projectkorra.projectkorra.board.BendingBoardManager;
 import com.projectkorra.projectkorra.event.PlayerChangeSubElementEvent;
+import com.projectkorra.projectkorra.object.EarthCosmetic;
 import org.battleplugins.arena.BattleArena;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -44,21 +45,7 @@ public class SerializedPlayer {
     public void start(Player player) {
         Bukkit.getScheduler().runTaskLater(BattleArena.getInstance(), () -> {
             BendingPlayer bPlayer = BendingPlayer.getBendingPlayer(player);
-            bPlayer.getSubElements().clear();
-            bPlayer.getElements().clear();
 
-            for (Elements e : elements) {
-                Element element = Element.getElement(e.name());
-
-                bPlayer.getElements().add(element);
-                for (final Element.SubElement sub : Element.getSubElements(element)) {
-                    if (bPlayer.hasSubElementPermission(sub)) {
-                        bPlayer.addSubElement(sub);
-                    }
-                }
-            }
-
-            bPlayer.setAbilities(getAbilities());
             bPlayer.removeUnusableAbilities();
             bPlayer.toggleBending();
             bPlayer.toggleBending();

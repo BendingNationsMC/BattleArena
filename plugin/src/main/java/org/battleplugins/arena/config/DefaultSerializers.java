@@ -3,6 +3,8 @@ package org.battleplugins.arena.config;
 import org.battleplugins.arena.Arena;
 import org.bukkit.block.data.BlockData;
 
+import java.time.Duration;
+
 final class DefaultSerializers {
 
     static void register() {
@@ -12,6 +14,10 @@ final class DefaultSerializers {
 
         ArenaConfigSerializer.registerSerializer(BlockData.class, (node, section, type) -> {
             section.set(node, type.getAsString());
+        });
+
+        ArenaConfigSerializer.registerSerializer(Duration.class, (node, section, type) -> {
+            section.set(node, type.getSeconds());
         });
     }
 }

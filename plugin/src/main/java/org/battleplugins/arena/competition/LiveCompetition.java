@@ -235,6 +235,11 @@ public class LiveCompetition<T extends Competition<T>> implements ArenaLike, Com
         this.players.put(player.getPlayer(), player);
         this.playersByRole.computeIfAbsent(player.getRole(), e -> new HashSet<>()).add(player);
 
+        if (player.getRole() == PlayerRole.PLAYING && player.getPlayer().isOnline()) {
+            player.getPlayer().setFlying(false);
+            player.getPlayer().setAllowFlight(false);
+        }
+
         if (team == null) {
             if (player.getRole() == PlayerRole.PLAYING) {
                 this.findAndJoinTeamIfApplicable(player);
@@ -393,6 +398,7 @@ public class LiveCompetition<T extends Competition<T>> implements ArenaLike, Com
         this.arena.getEventManager().unregisterEvents(this.competitionListener);
         this.arena.getEventManager().unregisterEvents(this.optionsListener);
         this.arena.getEventManager().unregisterEvents(this.statListener);
+        this.statListener.shutdown();
     }
 
     private ArenaPlayer createPlayer(Player player) {

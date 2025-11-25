@@ -22,6 +22,7 @@ import org.battleplugins.arena.messages.Messages;
 import org.battleplugins.arena.module.ArenaModule;
 import org.battleplugins.arena.module.ArenaModuleInitializer;
 import org.battleplugins.arena.proxy.ProxyDuelRequestEvent;
+import org.battleplugins.arena.proxy.SerializedPlayer;
 import org.battleplugins.arena.team.ArenaTeam;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -85,17 +86,37 @@ public class Duels implements ArenaModuleInitializer {
         private final UUID target;
         private final List<UUID> requesterParty;
         private final List<UUID> targetParty;
+        private final Map<UUID, SerializedPlayer> serializedPlayers;
 
         private ProxyDuel(Arena arena,
                           UUID requester,
                           UUID target,
                           Collection<UUID> requesterParty,
-                          Collection<UUID> targetParty) {
+                          Collection<UUID> targetParty,
+                          Collection<SerializedPlayer> serializedPlayers) {
             this.arena = arena;
             this.requester = requester;
             this.target = target;
             this.requesterParty = normalizeRoster(requester, requesterParty);
             this.targetParty = normalizeRoster(target, targetParty);
+            if (serializedPlayers != null && !serializedPlayers.isEmpty()) {
+                Map<UUID, SerializedPlayer> players = new LinkedHashMap<>();
+                for (SerializedPlayer serializedPlayer : serializedPlayers) {
+                    if (serializedPlayer == null) {
+                        continue;
+                    }
+
+                    try {
+                        UUID id = UUID.fromString(serializedPlayer.getUuid());
+                        players.put(id, serializedPlayer);
+                    } catch (IllegalArgumentException ignored) {
+                    }
+                }
+
+                this.serializedPlayers = Map.copyOf(players);
+            } else {
+                this.serializedPlayers = Collections.emptyMap();
+            }
         }
 
         private static List<UUID> normalizeRoster(UUID leader, Collection<UUID> roster) {
@@ -114,6 +135,10 @@ public class Duels implements ArenaModuleInitializer {
 
         private List<UUID> getTargetParty() {
             return targetParty;
+        }
+
+        private Collection<SerializedPlayer> getSerializedPlayers() {
+            return serializedPlayers.values();
         }
 
         private Collection<UUID> allParticipants() {
@@ -336,7 +361,7 @@ public class Duels implements ArenaModuleInitializer {
     }
 
     public void handleProxyDuelRequest(ProxyDuelRequestEvent event) {
-        ProxyDuel duel = new ProxyDuel(event.getArena(), event.getRequesterUuid(), event.getTargetUuid(), event.getRequesterPartyMembers(), event.getTargetPartyMembers());
+        ProxyDuel duel = new ProxyDuel(event.getArena(), event.getRequesterUuid(), event.getTargetUuid(), event.getRequesterPartyMembers(), event.getTargetPartyMembers(), event.getPlayers());
         duel.allParticipants().forEach(id -> this.proxyDuels.put(id, duel));
         String origin = event.getOriginServer();
         if (origin != null && !origin.isEmpty()) {
@@ -361,6 +386,12 @@ public class Duels implements ArenaModuleInitializer {
 
         // Both players are now present on the proxy host server.
         duel.allParticipants().forEach(this.proxyDuels::remove);
+        duel.getSerializedPlayers().forEach(serialized -> {
+            Player player = Bukkit.getPlayer(UUID.fromString(serialized.getUuid()));
+            if (player != null) {
+                serialized.start(player);
+            }
+        });
 
         this.acceptDuel(duel.arena, requesterPlayer, targetPlayer, duel.getRequesterParty(), duel.getTargetParty());
     }
@@ -407,6 +438,7 @@ public class Duels implements ArenaModuleInitializer {
         duelPayload.add("target", this.serializePlayer(opponent));
         duelPayload.add("requesterParty", this.serializeRoster(requesterParty));
         duelPayload.add("targetParty", this.serializeRoster(opponentParty));
+        duelPayload.add("players", playerData.deepCopy());
 
         if (origin != null && !origin.isEmpty()) {
             duelPayload.addProperty("origin", origin);

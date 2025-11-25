@@ -10,6 +10,7 @@ import redis.clients.jedis.Pipeline;
 import redis.clients.jedis.Response;
 
 import java.util.EnumMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -142,6 +143,46 @@ public class RankedRedisClient {
         try (Jedis jedis = pool.getResource()) {
             Long rank = jedis.zrevrank(globalLeaderboardKey(), playerId.toString());
             return rank == null ? null : rank + 1;
+        }
+    }
+
+    public UUID getPlayerAtRank(Elements element, int rank) {
+        if (!config.isMaintainLeaderboards() || rank <= 0) {
+            return null;
+        }
+
+        try (Jedis jedis = pool.getResource()) {
+            long idx = rank - 1L;
+            List<String> ids = jedis.zrevrange(leaderboardKey(element), idx, idx);
+            if (ids == null || ids.isEmpty()) {
+                return null;
+            }
+
+            return parseUuid(ids.iterator().next());
+        }
+    }
+
+    public UUID getGlobalPlayerAtRank(int rank) {
+        if (!config.isMaintainLeaderboards() || !config.isUseGlobalAverage() || rank <= 0) {
+            return null;
+        }
+
+        try (Jedis jedis = pool.getResource()) {
+            long idx = rank - 1L;
+            List<String> ids = jedis.zrevrange(globalLeaderboardKey(), idx, idx);
+            if (ids == null || ids.isEmpty()) {
+                return null;
+            }
+
+            return parseUuid(ids.iterator().next());
+        }
+    }
+
+    private UUID parseUuid(String raw) {
+        try {
+            return UUID.fromString(raw);
+        } catch (IllegalArgumentException ignored) {
+            return null;
         }
     }
 

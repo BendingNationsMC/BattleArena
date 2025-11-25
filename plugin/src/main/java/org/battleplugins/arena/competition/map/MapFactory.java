@@ -3,6 +3,7 @@ package org.battleplugins.arena.competition.map;
 import org.battleplugins.arena.Arena;
 import org.battleplugins.arena.competition.map.options.Bounds;
 import org.battleplugins.arena.competition.map.options.Spawns;
+import org.battleplugins.arena.module.domination.config.DominationMapSettings;
 import org.battleplugins.arena.proxy.Elements;
 import org.jetbrains.annotations.Nullable;
 
@@ -40,8 +41,8 @@ public class MapFactory {
      * @param spawns the spawn locations
      * @return the created map
      */
-    public LiveCompetitionMap create(String name, Arena arena, MapType type, String world, @Nullable Bounds bounds, @Nullable Spawns spawns, boolean remote, List<Elements> matchups) {
-        return this.provider.create(name, arena, type, world, bounds, spawns, remote, matchups);
+    public LiveCompetitionMap create(String name, Arena arena, MapType type, String world, @Nullable Bounds bounds, @Nullable Spawns spawns, @Nullable DominationMapSettings domination, boolean remote, List<Elements> matchups) {
+        return this.provider.create(name, arena, type, world, bounds, spawns, domination, remote, matchups);
     }
 
     public static <M extends LiveCompetitionMap> MapFactory create(Class<M> mapClass, Provider<M> provider) {
@@ -61,6 +62,6 @@ public class MapFactory {
          * @param spawns the spawn locations
          * @return the created map
          */
-        M create(String name, Arena arena, MapType type, String world, @Nullable Bounds bounds, @Nullable Spawns spawns, boolean remote, List<Elements> matchups);
+        M create(String name, Arena arena, MapType type, String world, @Nullable Bounds bounds, @Nullable Spawns spawns, @Nullable DominationMapSettings domination, boolean remote, List<Elements> matchups);
     }
 }

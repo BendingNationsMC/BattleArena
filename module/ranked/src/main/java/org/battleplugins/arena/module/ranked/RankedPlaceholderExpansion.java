@@ -2,6 +2,8 @@ package org.battleplugins.arena.module.ranked;
 
 import me.clip.placeholderapi.expansion.PlaceholderExpansion;
 import org.battleplugins.arena.proxy.Elements;
+import org.bukkit.Bukkit;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -17,6 +19,8 @@ import java.util.UUID;
  *   %ranked_rank_<element>%   - the player's rank for the element (if leaderboards are enabled)
  *   %ranked_elo_global%       - average ELO across all elements
  *   %ranked_rank_global%      - rank by average ELO (if enabled)
+ *   %<element>_rank{n}%       - username at leaderboard position n for <element> (e.g. %air_rank1%, %fire_rank{5}%)
+ *   %global_rank{n}%          - username at global leaderboard position n
  */
 public class RankedPlaceholderExpansion extends PlaceholderExpansion {
     private final RankedService rankedService;
@@ -42,12 +46,12 @@ public class RankedPlaceholderExpansion extends PlaceholderExpansion {
 
     @Override
     public @Nullable String onPlaceholderRequest(Player player, @NotNull String params) {
-        if (player == null || rankedService == null) {
+        if (rankedService == null) {
             return "";
         }
 
         String lowered = params.toLowerCase(Locale.ROOT);
-        UUID playerId = player.getUniqueId();
+        UUID playerId = player == null ? null : player.getUniqueId();
 
         if (lowered.startsWith("elo_")) {
             String elementName = lowered.substring("elo_".length());
@@ -69,6 +73,9 @@ public class RankedPlaceholderExpansion extends PlaceholderExpansion {
         if (lowered.startsWith("rank_")) {
             String elementName = lowered.substring("rank_".length());
             if (isGlobal(elementName)) {
+                if (playerId == null) {
+                    return "";
+                }
                 Long rank = rankedService.getGlobalRank(playerId);
                 return rank == null ? "" : String.valueOf(rank);
             }
@@ -78,8 +85,18 @@ public class RankedPlaceholderExpansion extends PlaceholderExpansion {
                 return "";
             }
 
+            if (playerId == null) {
+                return "";
+            }
             Long rank = rankedService.getRank(playerId, element);
             return rank == null ? "" : String.valueOf(rank);
+        }
+
+        if (lowered.contains("_rank")) {
+            String resolved = handleLeaderboardLookup(lowered);
+            if (resolved != null) {
+                return resolved;
+            }
         }
 
         return "";
@@ -99,5 +116,57 @@ public class RankedPlaceholderExpansion extends PlaceholderExpansion {
 
     private String formatElo(double value) {
         return String.format("%.0f", value);
+    }
+
+    private @Nullable String handleLeaderboardLookup(String placeholder) {
+        int idx = placeholder.indexOf("_rank");
+        if (idx <= 0) {
+            return null;
+        }
+
+        String elementToken = placeholder.substring(0, idx);
+        String suffix = placeholder.substring(idx + "_rank".length());
+        suffix = suffix.replace("{", "").replace("}", "");
+        if (suffix.startsWith("_")) {
+            suffix = suffix.substring(1);
+        }
+
+        if (suffix.isEmpty()) {
+            return "";
+        }
+
+        int position;
+        try {
+            position = Integer.parseInt(suffix);
+        } catch (NumberFormatException ex) {
+            return "";
+        }
+
+        if (position <= 0) {
+            return "";
+        }
+
+        UUID targetId;
+        if (isGlobal(elementToken)) {
+            targetId = rankedService.getGlobalPlayerAtRank(position);
+        } else {
+            Elements element = parseElement(elementToken);
+            if (element == null) {
+                return "";
+            }
+            targetId = rankedService.getPlayerAtRank(element, position);
+        }
+
+        if (targetId == null) {
+            return "";
+        }
+
+        OfflinePlayer offline = Bukkit.getOfflinePlayer(targetId);
+        if (offline == null) {
+            return "";
+        }
+
+        String name = offline.getName();
+        return name != null ? name : targetId.toString();
     }
 }

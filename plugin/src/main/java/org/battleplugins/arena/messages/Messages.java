@@ -89,8 +89,15 @@ public final class Messages {
 
     public static final Message ARENA_STARTS_IN = info("arena-starts-in", "{} will start in <secondary>{}</secondary>!");
     public static final Message ARENA_START_CANCELLED = error("arena-starts-cancelled", "Countdown cancelled as there is not enough players to start!");
+    public static final Message LIVES_REMAINING = info("arena-lives-remaining", "You have <secondary>{}</secondary> lives remaining!");
 
     public static final Message FIGHT = message("arena-fight", "<dark_red> O---[{==========> <yellow>Fight</yellow> <==========}]---O </dark_red>");
+
+    // Domination
+    public static final Message DOMINATION_CAPTURE_STARTED = info("domination-capture-started", "<secondary>{}</secondary> is capturing <primary>{}</primary>!");
+    public static final Message DOMINATION_CAPTURE_COMPLETED = success("domination-capture-completed", "<secondary>{}</secondary> captured <primary>{}</primary>!");
+    public static final Message DOMINATION_CAPTURE_LOCKED = success("domination-capture-locked", "<secondary>{}</secondary> secured <primary>{}</primary>! Zone locked.");
+    public static final Message DOMINATION_CAPTURE_LOST = error("domination-capture-lost", "<secondary>{}</secondary> lost control of <primary>{}</primary>!");
 
     // Editor wizard messages
     public static final Message ENTERED_WIZARD = info("editor-entered", """
@@ -135,6 +142,30 @@ public final class Messages {
 
                 Valid options: <secondary>AIR, WATER, EARTH, FIRE, CHI</secondary>.
                 """);
+    public static final Message MAP_MANAGE_DOMINATION_AREAS = info("editor-map-manage-domination-areas", """
+                Configure domination capture areas for this map.
+
+                Stand where you would like the center of the zone to be, then type <secondary>add</secondary>.
+                Type <secondary>remove</secondary> to delete an area, <secondary>list</secondary> to view all areas,
+                or <secondary>done</secondary> when finished.
+                """);
+    public static final Message MAP_MANAGE_DOMINATION_PROMPT = info("editor-map-manage-domination-prompt", "Enter <secondary>add</secondary>, <secondary>remove</secondary>, <secondary>list</secondary>, or <secondary>done</secondary>.");
+    public static final Message MAP_DOMINATION_ENTER_ID = info("editor-map-domination-enter-id", "Enter a unique id for this domination area. Type \"cancel\" to cancel.");
+    public static final Message MAP_DOMINATION_INVALID_ID = error("editor-map-domination-invalid-id", "Invalid domination area id! Please enter a name without commands.");
+    public static final Message MAP_DOMINATION_ID_EXISTS = error("editor-map-domination-id-exists", "A domination area with id <secondary>{}</secondary> already exists!");
+    public static final Message MAP_DOMINATION_ENTER_DISPLAY_NAME = info("editor-map-domination-enter-display", "Enter a display name for this area, or type \"skip\" to use the id.");
+    public static final Message MAP_DOMINATION_ENTER_RADIUS = info("editor-map-domination-enter-radius", "Enter the capture radius in blocks (e.g. 5).");
+    public static final Message MAP_DOMINATION_INVALID_RADIUS = error("editor-map-domination-invalid-radius", "Invalid radius! Please enter a number greater than zero.");
+    public static final Message MAP_DOMINATION_ENTER_DURATION = info("editor-map-domination-enter-duration", "Enter the capture duration (e.g. 5s, 30s, 1m30s).");
+    public static final Message MAP_DOMINATION_INVALID_DURATION = error("editor-map-domination-invalid-duration", "Invalid duration! Example formats: <secondary>5s</secondary>, <secondary>30s</secondary>, <secondary>1m30s</secondary>.");
+    public static final Message MAP_DOMINATION_ENTER_LOCK = info("editor-map-domination-enter-lock", "Should this area lock after capture? Type <secondary>true</secondary> or <secondary>false</secondary>.");
+    public static final Message MAP_DOMINATION_INVALID_LOCK = error("editor-map-domination-invalid-lock", "Invalid option! Type <secondary>true</secondary> or <secondary>false</secondary>.");
+    public static final Message MAP_DOMINATION_AREA_ADDED = success("editor-map-domination-area-added", "Added domination area <secondary>{}</secondary>!");
+    public static final Message MAP_DOMINATION_ENTER_REMOVE_ID = info("editor-map-domination-enter-remove-id", "Enter the id of the domination area to remove. Type \"cancel\" to cancel.");
+    public static final Message MAP_DOMINATION_AREA_REMOVED = success("editor-map-domination-area-removed", "Removed domination area <secondary>{}</secondary>!");
+    public static final Message MAP_DOMINATION_AREA_UNKNOWN = error("editor-map-domination-area-unknown", "No domination area with id <secondary>{}</secondary> exists.");
+    public static final Message MAP_DOMINATION_AREA_NONE = info("editor-map-domination-area-none", "No domination areas configured yet.");
+    public static final Message MAP_DOMINATION_ENTER_TYPE = info("editor-map-domination-enter-type", "Enter a domination type/tag for this area, or type \"skip\" to leave it blank.");
     public static final Message MAP_CREATED = success("editor-map-created", "Successfully created map <secondary>{}</secondary> for {}!");
     public static final Message MAP_EDITED = success("editor-map-edited", "Successfully edited map <secondary>{}</secondary>!");
     public static final Message MAP_FAILED_TO_SAVE = error("editor-map-failed-to-save", "An error occurred saving map <secondary>{}</secondary>! Please see the console for errors.");

@@ -9,6 +9,8 @@ import org.battleplugins.arena.competition.map.options.Spawns;
 import org.battleplugins.arena.competition.map.options.TeamSpawns;
 import org.battleplugins.arena.editor.ArenaEditorWizard;
 import org.battleplugins.arena.editor.EditorContext;
+import org.battleplugins.arena.module.domination.config.DominationAreaDefinition;
+import org.battleplugins.arena.module.domination.config.DominationMapSettings;
 import org.battleplugins.arena.proxy.Elements;
 import org.battleplugins.arena.team.ArenaTeam;
 import org.battleplugins.arena.util.IntRange;
@@ -18,6 +20,7 @@ import org.bukkit.entity.Player;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -33,6 +36,7 @@ public class MapCreateContext extends EditorContext<MapCreateContext> {
     private PositionWithRotation spectatorSpawn;
 
     private final Map<String, List<PositionWithRotation>> spawns = new HashMap<>();
+    private final Map<String, DominationAreaDefinition> dominationAreas = new LinkedHashMap<>();
 
     public MapCreateContext(ArenaEditorWizard<MapCreateContext> wizard, Arena arena, Player player) {
         super(wizard, arena, player);
@@ -175,6 +179,8 @@ public class MapCreateContext extends EditorContext<MapCreateContext> {
         }
 
         spawns.getTeamSpawns().forEach((team, teamSpawns) -> this.spawns.put(team, teamSpawns.getSpawns()));
+
+        map.getDominationSettings().ifPresent(settings -> this.dominationAreas.putAll(settings.getAreas()));
     }
 
     public void saveTo(LiveCompetitionMap map) {
@@ -198,6 +204,7 @@ public class MapCreateContext extends EditorContext<MapCreateContext> {
         map.setSpawns(spawns);
         map.setRemote(this.remote);
         map.setMatchups(this.matchups);
+        map.setDomination(this.buildDominationSettings());
     }
 
     @Override
@@ -222,10 +229,47 @@ public class MapCreateContext extends EditorContext<MapCreateContext> {
                 ", waitroomSpawn=" + this.waitroomSpawn +
                 ", spectatorSpawn=" + this.spectatorSpawn +
                 ", spawns=" + this.spawns +
+                ", dominationAreas=" + this.dominationAreas.keySet() +
                 ", wizard=" + this.wizard +
                 ", arena=" + this.arena +
                 ", player=" + this.player +
                 ", reconstructed=" + this.reconstructed +
                 '}';
+    }
+
+    public Map<String, DominationAreaDefinition> getDominationAreas() {
+        return this.dominationAreas;
+    }
+
+    public void addDominationArea(String id, DominationAreaDefinition definition) {
+        this.dominationAreas.put(id, definition);
+    }
+
+    public boolean removeDominationArea(String id) {
+        String key = this.findDominationAreaKey(id);
+        if (key == null) {
+            return false;
+        }
+
+        this.dominationAreas.remove(key);
+        return true;
+    }
+
+    public boolean hasDominationArea(String id) {
+        return this.findDominationAreaKey(id) != null;
+    }
+
+    public DominationMapSettings buildDominationSettings() {
+        return this.dominationAreas.isEmpty() ? null : new DominationMapSettings(this.dominationAreas);
+    }
+
+    private String findDominationAreaKey(String id) {
+        for (String existing : this.dominationAreas.keySet()) {
+            if (existing.equalsIgnoreCase(id)) {
+                return existing;
+            }
+        }
+
+        return null;
     }
 }

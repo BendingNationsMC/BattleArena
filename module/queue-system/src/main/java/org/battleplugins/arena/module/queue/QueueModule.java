@@ -12,6 +12,7 @@ import org.battleplugins.arena.event.arena.ArenaCreateExecutorEvent;
 import org.battleplugins.arena.module.ArenaModule;
 import org.battleplugins.arena.module.ArenaModuleInitializer;
 import org.battleplugins.arena.options.Teams;
+import org.battleplugins.arena.queue.QueueService;
 import org.battleplugins.arena.proxy.Elements;
 import org.battleplugins.arena.proxy.ProxyQueueJoinEvent;
 import org.battleplugins.arena.proxy.SerializedPlayer;
@@ -35,7 +36,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * is coordinated via Redis using SerializedPlayer payloads.
  */
 @ArenaModule(id = QueueModule.ID, name = "Queue System", description = "Adds a proxy-wide queue system for arenas.", authors = "BattlePlugins")
-public class QueueModule implements ArenaModuleInitializer {
+public class QueueModule implements ArenaModuleInitializer, QueueService {
     public static final String ID = "queue-system";
 
     // arenaName -> originServer -> queued players
@@ -358,5 +359,47 @@ public class QueueModule implements ArenaModuleInitializer {
 
     Set<UUID> getLocalQueued() {
         return localQueued;
+    }
+
+    @Override
+    public boolean leaveQueue(Arena arena, Player player) {
+        if (arena == null || player == null || !arena.isModuleEnabled(ID)) {
+            return false;
+        }
+
+        BattleArena plugin = arena.getPlugin();
+        if (!plugin.getMainConfig().isProxySupport()) {
+            return false;
+        }
+
+        UUID playerId = player.getUniqueId();
+        if (!this.localQueued.remove(playerId)) {
+            return false;
+        }
+
+        plugin.removePendingProxyJoin(playerId);
+
+        if (plugin.getMainConfig().isProxyHost()) {
+            removeFromQueues(playerId.toString());
+            return true;
+        }
+
+        if (plugin.getConnector() == null) {
+            // Failed to notify the proxy host; revert local state.
+            this.localQueued.add(playerId);
+            return false;
+        }
+
+        JsonObject payload = new JsonObject();
+        payload.addProperty("type", "queue_leave");
+        payload.addProperty("uuid", playerId.toString());
+
+        String origin = plugin.getMainConfig().getProxyServerName();
+        if (origin != null && !origin.isEmpty()) {
+            payload.addProperty("origin", origin);
+        }
+
+        plugin.getConnector().sendToRouter(payload.toString());
+        return true;
     }
 }

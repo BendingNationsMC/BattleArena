@@ -133,6 +133,9 @@ public class BattleArena extends JavaPlugin implements LoggerHolder, BattleArena
         INSTANCES_WORLD.setAutoSave(false);
         INSTANCES_WORLD.setGameRule(GameRule.DO_DAYLIGHT_CYCLE, false);
         INSTANCES_WORLD.setGameRule(GameRule.DISABLE_RAIDS, true);
+        INSTANCES_WORLD.setGameRule(GameRule.DO_WEATHER_CYCLE, false);
+        INSTANCES_WORLD.setGameRule(GameRule.DO_IMMEDIATE_RESPAWN, true);
+        INSTANCES_WORLD.setGameRule(GameRule.RANDOM_TICK_SPEED, 0);
 
         // Enable the plugin
         this.enable();

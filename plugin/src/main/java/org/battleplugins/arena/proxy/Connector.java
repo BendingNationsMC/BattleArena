@@ -379,12 +379,17 @@ public class Connector {
 
                 java.util.Set<java.util.UUID> requesterParty = parseRoster(object, "requesterParty", requester);
                 java.util.Set<java.util.UUID> targetParty = parseRoster(object, "targetParty", target);
+                java.util.List<org.battleplugins.arena.proxy.SerializedPlayer> players = parseSerializedPlayers(object);
+                if (players.isEmpty()) {
+                    players.add(requester);
+                    players.add(target);
+                }
 
                 String origin = object.has("origin") ? object.get("origin").getAsString() : null;
 
                 Bukkit.getScheduler().runTask(plugin, () -> {
                     org.bukkit.Bukkit.getPluginManager().callEvent(
-                            new org.battleplugins.arena.proxy.ProxyDuelRequestEvent(arena, requester, target, requesterParty, targetParty, origin)
+                            new org.battleplugins.arena.proxy.ProxyDuelRequestEvent(arena, requester, target, requesterParty, targetParty, players, origin)
                     );
                 });
 
@@ -668,6 +673,65 @@ public class Connector {
         }
 
         return roster;
+    }
+
+    private static java.util.List<org.battleplugins.arena.proxy.SerializedPlayer> parseSerializedPlayers(JsonObject payload) {
+        java.util.List<org.battleplugins.arena.proxy.SerializedPlayer> players = new ArrayList<>();
+        if (payload.has("players") && payload.get("players").isJsonArray()) {
+            payload.getAsJsonArray("players").forEach(element -> {
+                org.battleplugins.arena.proxy.SerializedPlayer player = deserializePlayer(element);
+                if (player != null) {
+                    players.add(player);
+                }
+            });
+        }
+
+        return players;
+    }
+
+    private static org.battleplugins.arena.proxy.SerializedPlayer deserializePlayer(JsonElement element) {
+        if (element == null) {
+            return null;
+        }
+
+        if (element.isJsonPrimitive()) {
+            return new org.battleplugins.arena.proxy.SerializedPlayer(element.getAsString());
+        }
+
+        if (!element.isJsonObject()) {
+            return null;
+        }
+
+        JsonObject playerObject = element.getAsJsonObject();
+        if (!playerObject.has("uuid") || !playerObject.get("uuid").isJsonPrimitive()) {
+            return null;
+        }
+
+        String uuid = playerObject.get("uuid").getAsString();
+        org.battleplugins.arena.proxy.SerializedPlayer serialized = new org.battleplugins.arena.proxy.SerializedPlayer(uuid);
+
+        if (playerObject.has("elements") && playerObject.get("elements").isJsonArray()) {
+            playerObject.getAsJsonArray("elements").forEach(elementEl -> {
+                try {
+                    org.battleplugins.arena.proxy.Elements parsed = org.battleplugins.arena.proxy.Elements.valueOf(elementEl.getAsString());
+                    serialized.getElements().add(parsed);
+                } catch (IllegalArgumentException ignored) {
+                }
+            });
+        }
+
+        if (playerObject.has("abilities") && playerObject.get("abilities").isJsonObject()) {
+            JsonObject abilitiesObject = playerObject.getAsJsonObject("abilities");
+            abilitiesObject.entrySet().forEach(entry -> {
+                try {
+                    int slot = Integer.parseInt(entry.getKey());
+                    serialized.getAbilities().put(slot, entry.getValue().getAsString());
+                } catch (NumberFormatException ignored) {
+                }
+            });
+        }
+
+        return serialized;
     }
 
     private void sendQueueMatchForPlayers(org.battleplugins.arena.Arena arena,

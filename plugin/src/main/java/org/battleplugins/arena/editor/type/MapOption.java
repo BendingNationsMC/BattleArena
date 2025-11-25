@@ -9,7 +9,8 @@ public enum MapOption implements EditorKey {
     MAX_POS("maxPos"),
     WAITROOM_SPAWN("waitroomSpawn"),
     SPECTATOR_SPAWN("spectatorSpawn"),
-    TEAM_SPAWNS("teamSpawns");
+    TEAM_SPAWNS("teamSpawns"),
+    DOMINATION_AREAS("dominationAreas");
 
     private final String key;
 

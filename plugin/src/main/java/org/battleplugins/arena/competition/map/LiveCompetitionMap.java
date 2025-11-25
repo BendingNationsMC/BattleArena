@@ -11,6 +11,7 @@ import org.battleplugins.arena.config.ArenaConfigSerializer;
 import org.battleplugins.arena.config.ArenaOption;
 import org.battleplugins.arena.config.ParseException;
 import org.battleplugins.arena.config.PostProcessable;
+import org.battleplugins.arena.module.domination.config.DominationMapSettings;
 import org.battleplugins.arena.proxy.Elements;
 import org.battleplugins.arena.util.BlockUtil;
 import org.battleplugins.arena.util.Util;
@@ -55,6 +56,9 @@ public class LiveCompetitionMap implements ArenaLike, CompetitionMap, PostProces
     @ArenaOption(name = "matchups", description = "Elements this map is targeted to.")
     private List<Elements> matchups;
 
+    @ArenaOption(name = "domination", description = "Domination capture areas defined for this map.")
+    private DominationMapSettings domination;
+
     private World mapWorld;
     private World parentWorld;
     private int offset;
@@ -66,22 +70,23 @@ public class LiveCompetitionMap implements ArenaLike, CompetitionMap, PostProces
     public LiveCompetitionMap() {
     }
 
-    public LiveCompetitionMap(String name, Arena arena, MapType type, String world, @Nullable Bounds bounds, @Nullable Spawns spawns) {
+    public LiveCompetitionMap(String name, Arena arena, MapType type, String world, @Nullable Bounds bounds, @Nullable Spawns spawns, @Nullable DominationMapSettings domination) {
         this.name = name;
         this.arena = arena;
         this.type = type;
         this.world = world;
         this.bounds = bounds;
         this.spawns = spawns;
+        this.domination = domination;
     }
 
     /**
      * Convenience constructor allowing the proxy/remote flag to be set
      * at creation time.
      */
-    public LiveCompetitionMap(String name, Arena arena, MapType type, String world, @Nullable Bounds bounds, @Nullable Spawns spawns, boolean remote,
+    public LiveCompetitionMap(String name, Arena arena, MapType type, String world, @Nullable Bounds bounds, @Nullable Spawns spawns, @Nullable DominationMapSettings domination, boolean remote,
                               List<Elements> matchups) {
-        this(name, arena, type, world, bounds, spawns);
+        this(name, arena, type, world, bounds, spawns, domination);
         this.remote = remote;
         this.matchups = matchups;
     }
@@ -124,6 +129,14 @@ public class LiveCompetitionMap implements ArenaLike, CompetitionMap, PostProces
      */
     public LiveCompetition<?> createCompetition(Arena arena) {
         return new LiveCompetition<>(arena, arena.getType(), this);
+    }
+
+    public Optional<DominationMapSettings> getDominationSettings() {
+        return Optional.ofNullable(this.domination);
+    }
+
+    public void setDomination(@Nullable DominationMapSettings domination) {
+        this.domination = domination;
     }
 
     public void save() throws ParseException, IOException {
@@ -313,6 +326,7 @@ public class LiveCompetitionMap implements ArenaLike, CompetitionMap, PostProces
         BattleArenaConfig config = this.getArena().getPlugin().getMainConfig();
         Bounds shiftedBounds = bounds.shift(offsetX, 0, 0);
         Spawns shiftedSpawns = this.spawns == null ? null : this.spawns.shift(offsetX, 0, 0);
+        DominationMapSettings shiftedDomination = this.domination == null ? null : this.domination.shift(offsetX, 0, 0);
 
         // If schematic usage is disabled in the config OR schematic pasting fails,
         // then attempt to fall back to copying the map directly from the map world.
@@ -327,13 +341,13 @@ public class LiveCompetitionMap implements ArenaLike, CompetitionMap, PostProces
                 BattleArena.instancesWorld().getName(),
                 shiftedBounds,
                 shiftedSpawns,
+                shiftedDomination,
                 this.remote,
                 this.matchups
         );
 
         copy.slot = slot;
         copy.offset = offsetX;
-
         // Copy additional fields for custom maps
         if (copy.getClass() != LiveCompetitionMap.class) {
             Util.copyFields(this, copy);
@@ -378,6 +392,7 @@ public class LiveCompetitionMap implements ArenaLike, CompetitionMap, PostProces
         BattleArenaConfig config = this.getArena().getPlugin().getMainConfig();
         Bounds shiftedBounds = bounds.shift(offsetX, 0, 0);
         Spawns shiftedSpawns = this.spawns == null ? null : this.spawns.shift(offsetX, 0, 0);
+        DominationMapSettings shiftedDomination = this.domination == null ? null : this.domination.shift(offsetX, 0, 0);
 
         Runnable onReady = () -> {
             try {
@@ -386,13 +401,13 @@ public class LiveCompetitionMap implements ArenaLike, CompetitionMap, PostProces
                         BattleArena.instancesWorld().getName(),
                         shiftedBounds,
                         shiftedSpawns,
+                        shiftedDomination,
                         this.remote,
                         this.matchups
                 );
 
                 copy.slot = slot;
                 copy.offset = offsetX;
-
                 // Copy additional fields for custom maps
                 if (copy.getClass() != LiveCompetitionMap.class) {
                     Util.copyFields(this, copy);

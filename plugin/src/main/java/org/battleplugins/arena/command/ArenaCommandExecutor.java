@@ -26,9 +26,11 @@ import org.battleplugins.arena.feature.party.Parties;
 import org.battleplugins.arena.feature.party.Party;
 import org.battleplugins.arena.feature.party.PartyMember;
 import org.battleplugins.arena.messages.Messages;
+import org.battleplugins.arena.module.ArenaModuleContainer;
 import org.battleplugins.arena.options.ArenaOptionType;
 import org.battleplugins.arena.options.TeamSelection;
 import org.battleplugins.arena.options.types.BooleanArenaOption;
+import org.battleplugins.arena.queue.QueueService;
 import org.battleplugins.arena.team.ArenaTeam;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
@@ -43,6 +45,7 @@ import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 
 public class ArenaCommandExecutor extends BaseCommandExecutor {
+    private static final String QUEUE_MODULE_ID = "queue-system";
     private static final CompetitionMap RANDOM_MAP_MARKER = new CompetitionMap() {
 
         @Override
@@ -130,8 +133,10 @@ public class ArenaCommandExecutor extends BaseCommandExecutor {
         for (Player toJoin : players) {
             if (ArenaPlayer.getArenaPlayer(toJoin) != null) {
                 ArenaPlayer arenaPlayer = ArenaPlayer.getArenaPlayer(player);
-                arenaPlayer.getCompetition().leave(player, ArenaLeaveEvent.Cause.COMMAND);
-                return;
+                if (arenaPlayer != null) {
+                    arenaPlayer.getCompetition().leave(player, ArenaLeaveEvent.Cause.COMMAND);
+                    return;
+                }
             }
         }
 
@@ -335,7 +340,11 @@ public class ArenaCommandExecutor extends BaseCommandExecutor {
     public void leave(Player player) {
         ArenaPlayer arenaPlayer = ArenaPlayer.getArenaPlayer(player);
         if (arenaPlayer == null) {
-            Messages.NOT_IN_ARENA.send(player);
+            if (this.tryLeaveQueue(player)) {
+                Messages.ARENA_LEFT.send(player, this.parentCommand);
+            } else {
+                Messages.NOT_IN_ARENA.send(player);
+            }
             return;
         }
 
@@ -347,7 +356,7 @@ public class ArenaCommandExecutor extends BaseCommandExecutor {
     public void create(Player player) {
         ArenaEditorWizards.MAP_CREATION.openWizard(player, this.arena);
     }
-    
+
     @ArenaCommand(commands = { "remove", "delete" }, description = "Removes a map.", permissionNode = "remove")
     public void remove(Player player, CompetitionMap map) {
         if (!(map instanceof LiveCompetitionMap liveMap)) {
@@ -632,6 +641,25 @@ public class ArenaCommandExecutor extends BaseCommandExecutor {
         }
 
         return true;
+    }
+
+    private boolean tryLeaveQueue(Player player) {
+        if (!this.arena.isModuleEnabled(QUEUE_MODULE_ID)) {
+            return false;
+        }
+
+        BattleArena plugin = this.arena.getPlugin();
+        ArenaModuleContainer<?> module = plugin.getModule(QUEUE_MODULE_ID);
+        if (module == null) {
+            return false;
+        }
+
+        Object initializer = module.mainClass();
+        if (!(initializer instanceof QueueService queueService)) {
+            return false;
+        }
+
+        return queueService.leaveQueue(this.arena, player);
     }
 
     @Override

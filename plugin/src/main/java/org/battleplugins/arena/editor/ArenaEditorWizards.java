@@ -11,6 +11,7 @@ import org.battleplugins.arena.competition.map.options.Spawns;
 import org.battleplugins.arena.competition.map.options.TeamSpawns;
 import org.battleplugins.arena.config.ParseException;
 import org.battleplugins.arena.editor.context.MapCreateContext;
+import org.battleplugins.arena.editor.stage.DominationAreaInputStage;
 import org.battleplugins.arena.editor.stage.EnumTextInputStage;
 import org.battleplugins.arena.editor.stage.PositionInputStage;
 import org.battleplugins.arena.editor.stage.SpawnInputStage;
@@ -125,9 +126,10 @@ public final class ArenaEditorWizards {
                             return;
                         }
 
-                        teams.clear();
-                    }
-            ))
+                    teams.clear();
+                }
+        ))
+            .addStage(MapOption.DOMINATION_AREAS, new DominationAreaInputStage())
             .onEditComplete(ctx -> {
                 LiveCompetitionMap map = BattleArena.getInstance().getMap(ctx.getArena(), ctx.getMapName());
                 if (map == null) {
@@ -159,7 +161,7 @@ public final class ArenaEditorWizards {
                 Spawns spawns = new Spawns(ctx.getWaitroomSpawn(), ctx.getSpectatorSpawn(), teamSpawns);
 
                 LiveCompetitionMap map = ctx.getArena().getMapFactory().create(ctx.getMapName(), ctx.getArena(), ctx.getMapType(), ctx.getPlayer().getWorld().getName(), bounds, spawns,
-                        ctx.isRemote(), ctx.getMatchups());
+                        ctx.buildDominationSettings(), ctx.isRemote(), ctx.getMatchups());
                 map.postProcess(); // Call post process to ensure all data is loaded
 
                 BattleArena.getInstance().addArenaMap(ctx.getArena(), map);

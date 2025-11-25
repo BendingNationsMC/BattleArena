@@ -22,6 +22,7 @@ public class ProxyDuelRequestEvent extends Event {
     private final SerializedPlayer target;
     private final List<UUID> requesterParty;
     private final List<UUID> targetParty;
+    private final List<SerializedPlayer> players;
     private final String originServer;
 
     public ProxyDuelRequestEvent(Arena arena,
@@ -29,12 +30,14 @@ public class ProxyDuelRequestEvent extends Event {
                                  SerializedPlayer target,
                                  Collection<UUID> requesterParty,
                                  Collection<UUID> targetParty,
+                                 Collection<SerializedPlayer> players,
                                  String originServer) {
         this.arena = arena;
         this.requester = requester;
         this.target = target;
         this.requesterParty = List.copyOf(requesterParty);
         this.targetParty = List.copyOf(targetParty);
+        this.players = players == null ? List.of() : List.copyOf(players);
         this.originServer = originServer;
     }
 
@@ -64,6 +67,10 @@ public class ProxyDuelRequestEvent extends Event {
 
     public List<UUID> getTargetPartyMembers() {
         return this.targetParty;
+    }
+
+    public List<SerializedPlayer> getPlayers() {
+        return this.players;
     }
 
     public String getOriginServer() {

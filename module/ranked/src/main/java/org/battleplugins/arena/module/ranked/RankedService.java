@@ -124,6 +124,14 @@ public class RankedService {
         return redis.getGlobalRank(playerId);
     }
 
+    public UUID getPlayerAtRank(Elements element, int rank) {
+        return redis.getPlayerAtRank(element, rank);
+    }
+
+    public UUID getGlobalPlayerAtRank(int rank) {
+        return redis.getGlobalPlayerAtRank(rank);
+    }
+
     public RankedConfig getConfig() {
         return config;
     }

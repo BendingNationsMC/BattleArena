@@ -41,6 +41,8 @@ public final class ResolverKeys {
     public static final ResolverKey<Duration> TIME_REMAINING_SHORT = register("time-remaining-short", Duration.class);
     public static final ResolverKey<Duration> REMAINING_START_TIME = register("remaining-start-time", Duration.class);
     public static final ResolverKey<VictoryConditionType> VICTORY_CONDITION_TYPE = register("victory-condition-type", VictoryConditionType.class);
+    public static final ResolverKey<String> DOMINATION_AREA_ID = register("domination-area-id", String.class);
+    public static final ResolverKey<String> DOMINATION_AREA_NAME = register("domination-area-name", String.class);
     
     private static <T> ResolverKey<T> register(String name, Class<T> type) {
         ResolverKey<T> key = ResolverKey.create(name, type);
