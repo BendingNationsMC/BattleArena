@@ -5,7 +5,8 @@ description: A complete match and event framework for Minecraft. Supports creati
 author: BattlePlugins
 website: https://battleplugins.org
 api-version: 1.19
-softdepend: [WorldEdit]
+softdepend: [WorldEdit, packetevents]
+load: POSTWORLD
 commands:
   battlearena:
     description: The main BattleArena command.

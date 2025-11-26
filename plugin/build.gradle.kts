@@ -13,6 +13,7 @@ val supportedVersions = listOf(
 
 repositories {
     maven("https://maven.enginehub.org/repo/")
+    maven { url = uri("https://repo.codemc.io/repository/maven-snapshots/") }
 }
 
 dependencies {
@@ -21,6 +22,7 @@ dependencies {
     compileOnly(libs.fawe.bukkit)
     implementation("redis.clients:jedis:5.1.4")
     compileOnly(fileTree(mapOf("dir" to "libs", "include" to listOf("*.jar"))))
+    implementation("fr.skytasul:glowingentities:1.4.9")
 }
 
 java {
