@@ -12,6 +12,8 @@ import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.WorldBorder;
+import org.bukkit.damage.DamageSource;
+import org.bukkit.damage.DamageType;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitTask;
 
@@ -103,12 +105,17 @@ public final class StormController {
     }
 
     private void tick() {
-        if (this.currentWave == null || this.waveStage == null) {
+        // If we don't have any stage (storm never started or has been fully shut down), do nothing
+        if (this.waveStage == null) {
             return;
         }
 
-        if (this.stageTickElapsed >= this.stageTotalTicks) {
+        // In FINAL stage, we skip stage transitions and radius updates, but still keep borders & damage
+        if (this.waveStage != WaveStage.FINAL && this.stageTickElapsed >= this.stageTotalTicks) {
             if (!this.advanceStage()) {
+                // advanceStage() returning false just means "no more waves",
+                // but we still want to keep ticking for damage in FINAL stage.
+                // So just return for this tick; future ticks will run with FINAL stage.
                 return;
             }
         }
@@ -118,12 +125,15 @@ public final class StormController {
         } else if (this.waveStage == WaveStage.RUSHING) {
             double targetRadius = Math.max(1D, this.currentWave.targetRadius());
             double divisor = Math.max(1D, this.stageTotalTicks);
-            double progress = Math.min(1D, this.stageTickElapsed / divisor);
+            // FIX: ensure floating-point division for smooth interpolation
+            double progress = Math.min(1D, (double) this.stageTickElapsed / divisor);
             this.currentRadius = this.waveStartRadius + (targetRadius - this.waveStartRadius) * progress;
         }
+        // In FINAL stage, currentRadius stays as last target radius
 
         this.stageTickElapsed++;
         this.updatePlayerBorders();
+        applyStormDamage();
     }
 
     private boolean advanceStage() {
@@ -131,8 +141,10 @@ public final class StormController {
             return this.beginRushStage();
         }
 
+        // We just completed a RUSHING stage
         this.currentRadius = Math.max(1D, this.currentWave.targetRadius());
         if (!this.beginNextWave()) {
+            // No more waves: lock in final radius but KEEP ticking for damage
             this.broadcast(StormMessages.STORM_COMPLETE);
             this.holdFinalRadius();
             this.updatePlayerBorders();
@@ -141,8 +153,14 @@ public final class StormController {
         return true;
     }
 
+    /**
+     * After the last wave completes, we hold the final radius and keep applying damage.
+     */
     private void holdFinalRadius() {
-        this.shutdown(false);
+        this.waveStage = WaveStage.FINAL;
+        this.stageTickElapsed = 0L;
+        this.stageTotalTicks = Long.MAX_VALUE;
+        // Do NOT call shutdown() here; that would cancel tickTask and stop damage.
     }
 
     private boolean beginRushStage() {
@@ -215,7 +233,8 @@ public final class StormController {
 
     private enum WaveStage {
         PAUSING,
-        RUSHING
+        RUSHING,
+        FINAL // storm has fully converged; keep damaging at final radius
     }
 
     private record WavePhase(StormWave wave, double targetRadius) {
@@ -297,5 +316,33 @@ public final class StormController {
         Set<UUID> uuids = new HashSet<>(this.activeBorders.keySet());
         uuids.forEach(this::clearBorder);
         this.activeBorders.clear();
+    }
+
+    private void applyStormDamage() {
+        World world = this.center.getWorld();
+        if (world == null) return;
+
+        // We set WORLD BORDER size to (currentRadius * 2) → square from centerX ± currentRadius, centerZ ± currentRadius.
+        // To match that EXACTLY, use a square check, not a circular distance.
+        double maxDelta = this.currentRadius;
+
+        Set<ArenaPlayer> trackedPlayers = new HashSet<>();
+        trackedPlayers.addAll(this.competition.getPlayers());
+        trackedPlayers.addAll(this.competition.getSpectators());
+
+        for (ArenaPlayer arenaPlayer : trackedPlayers) {
+            Player player = arenaPlayer.getPlayer();
+            if (!player.isOnline() || player.getWorld() != world) {
+                continue;
+            }
+
+            double dx = player.getLocation().getX() - this.center.getX();
+            double dz = player.getLocation().getZ() - this.center.getZ();
+
+            // Outside the same square that the world border uses?
+            if (Math.abs(dx) > maxDelta || Math.abs(dz) > maxDelta) {
+                player.damage(1.0, DamageSource.builder(DamageType.OUTSIDE_BORDER).build());
+            }
+        }
     }
 }

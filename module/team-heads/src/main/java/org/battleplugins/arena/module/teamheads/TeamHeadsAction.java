@@ -24,7 +24,7 @@ public class TeamHeadsAction extends EventAction {
         }
 
         ArenaTeam team = arenaPlayer.getTeam();
-        if (team == null || !arenaPlayer.getArena().getTeams().isNamedTeams() || arenaPlayer.getArena().getTeams().isNonTeamGame()) {
+        if (team == null || arenaPlayer.getArena().getTeams().isNonTeamGame()) {
             return; // Not a team game, no head
         }
 
