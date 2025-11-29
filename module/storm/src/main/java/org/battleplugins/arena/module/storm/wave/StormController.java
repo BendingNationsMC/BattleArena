@@ -1,5 +1,9 @@
 package org.battleplugins.arena.module.storm.wave;
 
+import io.lumine.mythic.api.mobs.MythicMob;
+import io.lumine.mythic.bukkit.BukkitAdapter;
+import io.lumine.mythic.bukkit.MythicBukkit;
+import io.lumine.mythic.core.mobs.ActiveMob;
 import org.battleplugins.arena.Arena;
 import org.battleplugins.arena.ArenaPlayer;
 import org.battleplugins.arena.competition.LiveCompetition;
@@ -49,6 +53,8 @@ public final class StormController {
     private long stageTotalTicks;
     private final Map<UUID, WorldBorder> activeBorders = new HashMap<>();
     private int waveIndex;
+    private boolean spawnedBoss;
+    private ActiveMob mob;
 
     public StormController(Arena arena, LiveCompetition<?> competition, StormSettings settings) {
         this.arena = arena;
@@ -97,14 +103,25 @@ public final class StormController {
         this.currentWave = null;
         this.waveStage = null;
         this.stageTickElapsed = 0L;
+
         this.stageTotalTicks = 0L;
         this.waveQueue.clear();
+        mob.despawn();
         if (clearBorders) {
             this.clearAllBorders();
         }
     }
 
     private void tick() {
+        if (!spawnedBoss && this.waveStage == WaveStage.FINAL) {
+            MythicMob mob = MythicBukkit.inst().getMobManager().getMythicMob("LRD_KRAMPUS").orElse(null);
+            if (mob != null) {
+                this.mob = mob.spawn(BukkitAdapter.adapt(center),1);
+            }
+
+            spawnedBoss = true;
+        }
+
         // If we don't have any stage (storm never started or has been fully shut down), do nothing
         if (this.waveStage == null) {
             return;

@@ -5,7 +5,7 @@ description: A complete match and event framework for Minecraft. Supports creati
 author: BattlePlugins
 website: https://battleplugins.org
 api-version: 1.19
-softdepend: [WorldEdit, packetevents]
+softdepend: [WorldEdit, packetevents, mythicmobs]
 load: POSTWORLD
 commands:
   battlearena:

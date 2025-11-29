@@ -1,5 +1,6 @@
 package org.battleplugins.arena.module.storm;
 
+import io.lumine.mythic.api.mobs.MythicMob;
 import org.battleplugins.arena.Arena;
 import org.battleplugins.arena.ArenaPlayer;
 import org.battleplugins.arena.BattleArena;

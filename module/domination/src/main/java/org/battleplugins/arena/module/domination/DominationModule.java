@@ -5,8 +5,10 @@ import com.projectkorra.projectkorra.Element;
 import com.projectkorra.projectkorra.attribute.Attribute;
 import com.projectkorra.projectkorra.attribute.AttributeModification;
 import com.projectkorra.projectkorra.attribute.AttributeModifier;
+import com.projectkorra.projectkorra.avatar.AvatarState;
 import com.projectkorra.projectkorra.event.AbilityRecalculateAttributeEvent;
 import com.projectkorra.projectkorra.object.Style;
+import io.lumine.mythic.bukkit.events.MythicMobDeathEvent;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.battleplugins.arena.Arena;
@@ -47,9 +49,12 @@ public class DominationModule implements ArenaModuleInitializer, Listener {
     @SuppressWarnings("unused")
     private static final ArenaEventType<DominationCaptureStartEvent> DOMINATION_CAPTURE_START_EVENT = ArenaEventType.create("domination-capture-start", DominationCaptureStartEvent.class);
 
+
     private final Map<String, DominationArenaHandler> handlers = new ConcurrentHashMap<>();
     private final Set<UUID> increasedDamage = new HashSet<>();
     private final Set<UUID> damageResistance = new HashSet<>();
+
+    private final Set<UUID> avatarState = new HashSet<>();
 
     @EventHandler
     public void onArenaInitialize(ArenaInitializeEvent event) {
@@ -298,18 +303,39 @@ public class DominationModule implements ArenaModuleInitializer, Listener {
     }
 
     @EventHandler
+    public void onMythic(MythicMobDeathEvent event) {
+        if (event.getKiller() instanceof Player player) {
+            ArenaPlayer arenaPlayer = ArenaPlayer.getArenaPlayer(player);
+            if (arenaPlayer == null)
+                return;
+
+            arenaPlayer.getCompetition().getTeamManager().getPlayersOnTeam(
+                    arenaPlayer.getTeam()
+            ).forEach(p -> {
+                avatarState.add(p.getPlayer().getUniqueId());
+
+                BendingPlayer bendingPlayer = BendingPlayer.getBendingPlayer(p.getPlayer());
+                if (bendingPlayer == null) return;
+                bendingPlayer.getCooldowns().remove("AvatarState");
+                new AvatarState(player);
+            });
+        }
+    }
+
+    @EventHandler
     public void onRecalculate(AbilityRecalculateAttributeEvent event) {
-        if (!Attribute.DAMAGE.equals(event.getAttribute()))
-            return;
+        if (Attribute.DAMAGE.equals(event.getAttribute())) {
 
-        BendingPlayer bPlayer = event.getAbility().getBendingPlayer();
-        if (bPlayer == null || !increasedDamage.contains(bPlayer.getPlayer().getUniqueId()))
-            return;
+            BendingPlayer bPlayer = event.getAbility().getBendingPlayer();
+            if (bPlayer == null || !increasedDamage.contains(bPlayer.getPlayer().getUniqueId()))
+                return;
 
-        final double modification = event.getAbility().getElement() == Element.CHI ? 0.5 : 1;
+            final double modification = event.getAbility().getElement() == Element.CHI ? 0.5 : 1;
 
-        event.addModification(AttributeModification.of(AttributeModifier.ADDITION, modification,
-                new NamespacedKey(BattleArena.getInstance(), "double_damage")));
+            event.addModification(AttributeModification.of(AttributeModifier.ADDITION, modification,
+                    new NamespacedKey(BattleArena.getInstance(), "double_damage")));
+
+        }
     }
 
     public Set<UUID> getDamageResistance() {
@@ -318,5 +344,9 @@ public class DominationModule implements ArenaModuleInitializer, Listener {
 
     public Set<UUID> getIncreasedDamage() {
         return increasedDamage;
+    }
+
+    public Set<UUID> getAvatarState() {
+        return avatarState;
     }
 }

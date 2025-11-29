@@ -25,6 +25,7 @@ public final class StormModule implements ArenaModuleInitializer, Listener {
 
     private final Map<String, StormArenaHandler> handlers = new ConcurrentHashMap<>();
 
+
     @EventHandler
     public void onArenaInitialize(ArenaInitializeEvent event) {
         Arena arena = event.getArena();

@@ -11,6 +11,7 @@ import org.battleplugins.arena.event.ArenaListener;
 import org.battleplugins.arena.event.arena.ArenaPhaseCompleteEvent;
 import org.battleplugins.arena.event.arena.ArenaPhaseStartEvent;
 import org.battleplugins.arena.event.arena.ArenaRemoveCompetitionEvent;
+import org.battleplugins.arena.event.player.ArenaJoinEvent;
 import org.battleplugins.arena.event.player.ArenaLeaveEvent;
 import org.battleplugins.arena.event.player.ArenaRespawnEvent;
 import org.battleplugins.arena.module.domination.config.DominationArenaSettings;
@@ -70,18 +71,30 @@ final class DominationArenaHandler implements ArenaListener {
 
     @ArenaEventHandler
     public void onRespawn(ArenaRespawnEvent event) {
-        if (!this.module.getDamageResistance().contains(event.getPlayer().getUniqueId())) return;
-        event.getPlayer().addPotionEffect(new PotionEffect(PotionEffectType.getByName("RESISTANCE"), 9999, 0));
+        if (this.module.getDamageResistance().contains(event.getPlayer().getUniqueId())) {
+            event.getPlayer().addPotionEffect(new PotionEffect(PotionEffectType.getByName("RESISTANCE"), 9999, 0));
+        }
+
+        if (this.module.getAvatarState().contains(event.getPlayer().getUniqueId())) {
+            event.getPlayer().setGlowing(true);
+        }
     }
 
     @ArenaEventHandler
     public void onPlayerLeave(ArenaLeaveEvent event) {
         this.module.getDamageResistance().remove(event.getPlayer().getUniqueId());
         this.module.getIncreasedDamage().remove(event.getPlayer().getUniqueId());
+        this.module.getAvatarState().remove(event.getPlayer().getUniqueId());
+        event.getPlayer().setGlowing(false);
 
         BendingPlayer bPlayer = BendingPlayer.getBendingPlayer(event.getPlayer());
         if (bPlayer == null) return;
         bPlayer.setStyle(null);
+    }
+
+    @ArenaEventHandler
+    public void onPlayerJoin(ArenaJoinEvent event) {
+        event.getPlayer().setGlowing(false);
     }
 
     void shutdown() {
