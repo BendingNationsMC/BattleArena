@@ -1,6 +1,7 @@
 package org.battleplugins.arena.module.storm;
 
 import org.battleplugins.arena.Arena;
+import org.battleplugins.arena.ArenaPlayer;
 import org.battleplugins.arena.BattleArena;
 import org.battleplugins.arena.config.ArenaConfigParser;
 import org.battleplugins.arena.config.ParseException;
@@ -9,8 +10,10 @@ import org.battleplugins.arena.module.ArenaModule;
 import org.battleplugins.arena.module.ArenaModuleInitializer;
 import org.battleplugins.arena.module.storm.config.StormSettings;
 import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.vehicle.VehicleExitEvent;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -52,6 +55,18 @@ public final class StormModule implements ArenaModuleInitializer, Listener {
         }
 
         this.registerHandler(arena, settings);
+    }
+
+    @EventHandler
+    public void onVehicleMount(VehicleExitEvent event) {
+        if (!(event.getExited() instanceof Player player)) {
+            return;
+        }
+
+        ArenaPlayer arenaPlayer = ArenaPlayer.getArenaPlayer(player);
+        if (arenaPlayer == null) return;
+
+        event.setCancelled(true);
     }
 
     private void registerHandler(Arena arena, StormSettings settings) {

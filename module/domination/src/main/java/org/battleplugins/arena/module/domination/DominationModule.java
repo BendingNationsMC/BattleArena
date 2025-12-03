@@ -309,6 +309,10 @@ public class DominationModule implements ArenaModuleInitializer, Listener {
             if (arenaPlayer == null)
                 return;
 
+            arenaPlayer.getCompetition().getPlayers().forEach(p -> {
+                p.getPlayer().resetPlayerTime();
+            });
+
             arenaPlayer.getCompetition().getTeamManager().getPlayersOnTeam(
                     arenaPlayer.getTeam()
             ).forEach(p -> {
@@ -317,7 +321,7 @@ public class DominationModule implements ArenaModuleInitializer, Listener {
                 BendingPlayer bendingPlayer = BendingPlayer.getBendingPlayer(p.getPlayer());
                 if (bendingPlayer == null) return;
                 bendingPlayer.getCooldowns().remove("AvatarState");
-                new AvatarState(player);
+                new AvatarState(p.getPlayer());
             });
         }
     }

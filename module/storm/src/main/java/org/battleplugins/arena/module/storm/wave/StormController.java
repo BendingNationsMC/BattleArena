@@ -1,6 +1,7 @@
 package org.battleplugins.arena.module.storm.wave;
 
 import io.lumine.mythic.api.mobs.MythicMob;
+import io.lumine.mythic.api.skills.placeholders.PlaceholderDouble;
 import io.lumine.mythic.bukkit.BukkitAdapter;
 import io.lumine.mythic.bukkit.MythicBukkit;
 import io.lumine.mythic.core.mobs.ActiveMob;
@@ -117,8 +118,16 @@ public final class StormController {
             MythicMob mob = MythicBukkit.inst().getMobManager().getMythicMob("LRD_KRAMPUS").orElse(null);
             if (mob != null) {
                 this.mob = mob.spawn(BukkitAdapter.adapt(center),1);
+
+                int partySize = this.competition.getAlivePlayerCount();
+                double scaledHealth = 100 + 25 * partySize;
+                this.mob.getEntity().setMaxHealth(scaledHealth);
+                this.mob.getEntity().setHealth(scaledHealth);
             }
 
+            for (ArenaPlayer player : this.competition.getPlayers()) {
+                player.getPlayer().setPlayerTime(18000, false);
+            }
             spawnedBoss = true;
         }
 
@@ -355,9 +364,10 @@ public final class StormController {
 
             double dx = player.getLocation().getX() - this.center.getX();
             double dz = player.getLocation().getZ() - this.center.getZ();
+            double dy = player.getLocation().getY() - this.center.getY();
 
             // Outside the same square that the world border uses?
-            if (Math.abs(dx) > maxDelta || Math.abs(dz) > maxDelta) {
+            if (Math.abs(dx) > maxDelta || Math.abs(dz) > maxDelta || Math.abs(dy) > maxDelta) {
                 player.damage(1.0, DamageSource.builder(DamageType.OUTSIDE_BORDER).build());
             }
         }
