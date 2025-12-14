@@ -59,8 +59,12 @@ public class ProxyArenaJoinHandler implements Listener {
         for (SerializedPlayer serializedPlayer : join.players) {
             UUID playerId = UUID.fromString(serializedPlayer.getUuid());
             this.pendingJoins.put(playerId, join);
-            if (join.originServer != null && !join.originServer.isEmpty()) {
-                this.playerOrigins.put(playerId, join.originServer);
+            String origin = serializedPlayer.getOrigin();
+            if (origin == null || origin.isEmpty()) {
+                origin = join.originServer;
+            }
+            if (origin != null && !origin.isEmpty()) {
+                this.playerOrigins.put(playerId, origin);
             }
         }
 

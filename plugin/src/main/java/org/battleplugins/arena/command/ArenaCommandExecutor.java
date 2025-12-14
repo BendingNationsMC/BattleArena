@@ -45,7 +45,7 @@ import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 
 public class ArenaCommandExecutor extends BaseCommandExecutor {
-    private static final String QUEUE_MODULE_ID = "queue-system";
+    private static final String QUEUE_MODULE_ID = QueueService.MODULE_ID;
     private static final CompetitionMap RANDOM_MAP_MARKER = new CompetitionMap() {
 
         @Override
@@ -243,35 +243,11 @@ public class ArenaCommandExecutor extends BaseCommandExecutor {
 
     @ArenaCommand(commands = { "spectate", "s" }, description = "Spectate an arena.", permissionNode = "spectate")
     public void spectate(Player player, Competition<?> competition) {
-        if (ArenaPlayer.getArenaPlayer(player) != null) {
-            Messages.ALREADY_IN_ARENA.send(player);
+        if (this.tryHandleProxySpectate(player, competition)) {
             return;
         }
 
-        if (competition == null) {
-            Messages.NO_ARENA_WITH_NAME.send(player);
-            return;
-        }
-
-        competition.canJoin(player, PlayerRole.SPECTATING).whenComplete((result, e) -> {
-            if (e != null) {
-                Messages.ARENA_ERROR.send(player, e.getMessage());
-                this.arena.getPlugin().error("An error occurred while spectating the arena", e);
-                return;
-            }
-
-            if (result.canJoin()) {
-                competition.join(player, PlayerRole.SPECTATING);
-
-                Messages.ARENA_SPECTATE.send(player, competition.getMap().getName());
-            } else {
-                if (result.message() != null) {
-                    result.message().send(player);
-                } else {
-                    Messages.ARENA_NOT_SPECTATABLE.send(player);
-                }
-            }
-        });
+        SpectateHelper.spectateCompetition(player, competition, this.arena.getPlugin());
     }
 
     @ArenaCommand(commands = "list", description = "List all maps and competitions in them.", permissionNode = "list")
@@ -641,6 +617,24 @@ public class ArenaCommandExecutor extends BaseCommandExecutor {
         }
 
         return true;
+    }
+
+    private boolean tryHandleProxySpectate(Player player, Competition<?> competition) {
+        BattleArena plugin = this.arena.getPlugin();
+        if (!plugin.getMainConfig().isProxySupport() || plugin.getMainConfig().isProxyHost()) {
+            return false;
+        }
+
+        if (competition == null) {
+            return false;
+        }
+
+        CompetitionMap map = competition.getMap();
+        if (!(map instanceof LiveCompetitionMap liveMap) || !liveMap.isRemote()) {
+            return false;
+        }
+
+        return plugin.requestProxyArenaSpectate(player, this.arena, liveMap.getName());
     }
 
     private boolean tryLeaveQueue(Player player) {

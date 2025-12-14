@@ -12,7 +12,6 @@ import org.battleplugins.arena.config.ArenaOption;
 import org.battleplugins.arena.config.ParseException;
 import org.battleplugins.arena.config.PostProcessable;
 import org.battleplugins.arena.module.domination.config.DominationMapSettings;
-import org.battleplugins.arena.proxy.Elements;
 import org.battleplugins.arena.util.BlockUtil;
 import org.battleplugins.arena.util.Util;
 import org.bukkit.Bukkit;
@@ -27,6 +26,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -53,11 +53,15 @@ public class LiveCompetitionMap implements ArenaLike, CompetitionMap, PostProces
     @ArenaOption(name = "spawns", description = "The spawn locations.")
     private Spawns spawns;
 
-    @ArenaOption(name = "matchups", description = "Elements this map is targeted to.")
-    private List<Elements> matchups;
+    @ArenaOption(name = "matchups", description = "Element matchups this map is targeted to.")
+    private List<Object> matchupConfig;
+    private transient List<ElementMatchup> matchups = List.of();
 
     @ArenaOption(name = "domination", description = "Domination capture areas defined for this map.")
     private DominationMapSettings domination;
+
+    @ArenaOption(name = "cache-reset", description = "Whether cached instances of this map should be reset after each match.")
+    private boolean cacheReset;
 
     private World mapWorld;
     private World parentWorld;
@@ -85,10 +89,10 @@ public class LiveCompetitionMap implements ArenaLike, CompetitionMap, PostProces
      * at creation time.
      */
     public LiveCompetitionMap(String name, Arena arena, MapType type, String world, @Nullable Bounds bounds, @Nullable Spawns spawns, @Nullable DominationMapSettings domination, boolean remote,
-                              List<Elements> matchups) {
+                              List<ElementMatchup> matchups) {
         this(name, arena, type, world, bounds, spawns, domination);
         this.remote = remote;
-        this.matchups = matchups;
+        this.setMatchups(matchups);
     }
 
     @Override
@@ -102,23 +106,7 @@ public class LiveCompetitionMap implements ArenaLike, CompetitionMap, PostProces
             throw new IllegalStateException("World " + this.world + " for map " + this.name + " in arena " + this.arena.getName() + " does not exist!");
         }
 
-        // Normalize matchups list so it always contains Elements values even if the
-        // configuration was loaded as strings by the parser.
-        if (this.matchups != null && !this.matchups.isEmpty()) {
-            java.util.List<Elements> normalized = new java.util.ArrayList<>();
-            for (Object o : this.matchups) {
-                if (o instanceof Elements e) {
-                    normalized.add(e);
-                } else if (o instanceof String s) {
-                    try {
-                        normalized.add(Elements.valueOf(s.toUpperCase(Locale.ROOT)));
-                    } catch (IllegalArgumentException ignored) {
-                        // Ignore unknown or invalid element names
-                    }
-                }
-            }
-            this.matchups = normalized;
-        }
+        this.rebuildMatchups();
     }
 
     /**
@@ -275,7 +263,7 @@ public class LiveCompetitionMap implements ArenaLike, CompetitionMap, PostProces
      *
      * @return an immutable list of targeted elements
      */
-    public final List<Elements> getMatchups() {
+    public final List<ElementMatchup> getMatchups() {
         return this.matchups == null ? List.of() : List.copyOf(this.matchups);
     }
 
@@ -284,8 +272,53 @@ public class LiveCompetitionMap implements ArenaLike, CompetitionMap, PostProces
      *
      * @param matchups list of elements, or null for none
      */
-    public final void setMatchups(List<Elements> matchups) {
-        this.matchups = matchups == null ? null : new java.util.ArrayList<>(matchups);
+    public final void setMatchups(List<ElementMatchup> matchups) {
+        if (matchups == null || matchups.isEmpty()) {
+            this.matchups = List.of();
+            this.matchupConfig = null;
+            return;
+        }
+
+        this.matchups = new java.util.ArrayList<>(matchups);
+        java.util.List<Object> serialized = new java.util.ArrayList<>(matchups.size());
+        for (ElementMatchup matchup : matchups) {
+            serialized.add(matchup.toConfigValue());
+        }
+        this.matchupConfig = serialized;
+    }
+
+    private void rebuildMatchups() {
+        if (this.matchupConfig == null || this.matchupConfig.isEmpty()) {
+            this.matchups = List.of();
+            return;
+        }
+
+        java.util.List<ElementMatchup> parsed = new java.util.ArrayList<>();
+        for (Object raw : this.matchupConfig) {
+            if (raw instanceof ElementMatchup matchup) {
+                parsed.add(matchup);
+                continue;
+            }
+
+            if (raw instanceof String s) {
+                try {
+                    parsed.add(ElementMatchup.parse(s));
+                } catch (IllegalArgumentException ex) {
+                    BattleArena.getInstance().warn("Ignoring invalid matchup entry '{}' for map {}", s, this.name);
+                }
+                continue;
+            }
+
+            if (raw instanceof Map<?, ?> map) {
+                try {
+                    parsed.add(ElementMatchup.fromMap(map));
+                } catch (IllegalArgumentException ex) {
+                    BattleArena.getInstance().warn("Ignoring invalid matchup entry '{}' for map {}", map, this.name);
+                }
+            }
+        }
+
+        this.matchups = parsed.isEmpty() ? List.of() : parsed;
     }
 
     /**
@@ -312,11 +345,25 @@ public class LiveCompetitionMap implements ArenaLike, CompetitionMap, PostProces
             throw new IllegalStateException("Cannot create dynamic competition for non-dynamic map!");
         }
 
+        LiveCompetitionMap cached = arena.getPlugin().getDynamicArenaCache().borrow(this);
+        if (cached != null) {
+            return cached.createCompetition(arena);
+        }
+
+        if (this.bounds == null) {
+            BattleArena.getInstance().error("Cannot create dynamic competition for map {} - bounds are not defined!", this.name);
+            return null;
+        }
+
         int slot = BattleArena.getMapPool().acquire();
-        int offsetX = slot * BattleArena.SLOT_SPACING;
+        InstanceAllocator.Allocation allocation = BattleArena.getInstanceAllocator().reserve(slot, this.bounds, BattleArena.SLOT_SPACING);
+        int offsetX = allocation.offsetX();
+        Bounds shiftedBounds = allocation.shiftedBounds();
         World world = BattleArena.instancesWorld();
 
         if (world == null) {
+            BattleArena.getInstanceAllocator().release(slot);
+            BattleArena.getMapPool().release(slot);
             return null;
         }
 
@@ -324,7 +371,6 @@ public class LiveCompetitionMap implements ArenaLike, CompetitionMap, PostProces
         world.setAutoSave(false);
 
         BattleArenaConfig config = this.getArena().getPlugin().getMainConfig();
-        Bounds shiftedBounds = bounds.shift(offsetX, 0, 0);
         Spawns shiftedSpawns = this.spawns == null ? null : this.spawns.shift(offsetX, 0, 0);
         DominationMapSettings shiftedDomination = this.domination == null ? null : this.domination.shift(offsetX, 0, 0);
 
@@ -332,19 +378,28 @@ public class LiveCompetitionMap implements ArenaLike, CompetitionMap, PostProces
         // then attempt to fall back to copying the map directly from the map world.
         // If that also fails, return null to indicate map setup failure.
         if ((!config.isSchematicUsage() || !BlockUtil.pasteSchematic(this.name, this.getArena().getName(), world, shiftedBounds))
-                && !BlockUtil.copyToWorld(this.mapWorld, world, bounds, shiftedBounds)) {
+                && !BlockUtil.copyToWorld(this.mapWorld, world, this.bounds, shiftedBounds)) {
+            BattleArena.getInstanceAllocator().release(slot);
+            BattleArena.getMapPool().release(slot);
             return null;
         }
 
-        LiveCompetitionMap copy = arena.getMapFactory().create(
-                this.name, arena, this.type,
-                BattleArena.instancesWorld().getName(),
-                shiftedBounds,
-                shiftedSpawns,
-                shiftedDomination,
-                this.remote,
-                this.matchups
-        );
+        LiveCompetitionMap copy;
+        try {
+            copy = arena.getMapFactory().create(
+                    this.name, arena, this.type,
+                    BattleArena.instancesWorld().getName(),
+                    shiftedBounds,
+                    shiftedSpawns,
+                    shiftedDomination,
+                    this.remote,
+                    this.matchups
+            );
+        } catch (Throwable t) {
+            BattleArena.getInstanceAllocator().release(slot);
+            BattleArena.getMapPool().release(slot);
+            throw t;
+        }
 
         copy.slot = slot;
         copy.offset = offsetX;
@@ -356,6 +411,8 @@ public class LiveCompetitionMap implements ArenaLike, CompetitionMap, PostProces
         copy.mapWorld = world;
         copy.parentWorld = this.mapWorld;
         copy.postProcess();
+
+        arena.getPlugin().getDynamicArenaCache().track(this, copy);
 
         return copy.createCompetition(arena);
     }
@@ -379,18 +436,36 @@ public class LiveCompetitionMap implements ArenaLike, CompetitionMap, PostProces
             return future;
         }
 
+        LiveCompetitionMap cached = arena.getPlugin().getDynamicArenaCache().borrow(this);
+        if (cached != null) {
+            Bukkit.getScheduler().runTask(arena.getPlugin(), () -> {
+                LiveCompetition<?> competition = cached.createCompetition(arena);
+                arena.getPlugin().addCompetition(arena, competition);
+                future.complete(competition);
+            });
+            return future;
+        }
+
+        if (this.bounds == null) {
+            BattleArena.getInstance().error("Cannot create dynamic competition for map {} - bounds are not defined!", this.name);
+            future.complete(null);
+            return future;
+        }
+
         int slot = BattleArena.getMapPool().acquire();
-        int offsetX = slot * BattleArena.SLOT_SPACING;
+        InstanceAllocator.Allocation allocation = BattleArena.getInstanceAllocator().reserve(slot, this.bounds, BattleArena.SLOT_SPACING);
+        int offsetX = allocation.offsetX();
+        Bounds shiftedBounds = allocation.shiftedBounds();
         World world = BattleArena.instancesWorld();
 
         if (world == null) {
+            BattleArena.getInstanceAllocator().release(slot);
             BattleArena.getMapPool().release(slot);
             future.complete(null);
             return future;
         }
 
         BattleArenaConfig config = this.getArena().getPlugin().getMainConfig();
-        Bounds shiftedBounds = bounds.shift(offsetX, 0, 0);
         Spawns shiftedSpawns = this.spawns == null ? null : this.spawns.shift(offsetX, 0, 0);
         DominationMapSettings shiftedDomination = this.domination == null ? null : this.domination.shift(offsetX, 0, 0);
 
@@ -419,10 +494,12 @@ public class LiveCompetitionMap implements ArenaLike, CompetitionMap, PostProces
 
                 LiveCompetition<?> competition = copy.createCompetition(arena);
                 arena.getPlugin().addCompetition(arena, competition);
+                arena.getPlugin().getDynamicArenaCache().track(this, copy);
 
                 future.complete(competition);
             } catch (Throwable t) {
                 BattleArena.getInstance().error("Failed to prepare dynamic competition for map " + this.name, t);
+                BattleArena.getInstanceAllocator().release(slot);
                 BattleArena.getMapPool().release(slot);
                 future.complete(null);
             }
@@ -432,7 +509,8 @@ public class LiveCompetitionMap implements ArenaLike, CompetitionMap, PostProces
 
         if (!config.isSchematicUsage() || !BlockUtil.pasteSchematic(this.name, this.getArena().getName(), world, shiftedBounds, onReady)) {
             // Either schematic usage is disabled or paste failed, fall back to world copy.
-            if (!BlockUtil.copyToWorld(this.mapWorld, world, bounds, shiftedBounds, onReady)) {
+            if (!BlockUtil.copyToWorld(this.mapWorld, world, this.bounds, shiftedBounds, onReady)) {
+                BattleArena.getInstanceAllocator().release(slot);
                 BattleArena.getMapPool().release(slot);
                 future.complete(null);
             } else {
@@ -443,6 +521,7 @@ public class LiveCompetitionMap implements ArenaLike, CompetitionMap, PostProces
         }
 
         if (!started && !future.isDone()) {
+            BattleArena.getInstanceAllocator().release(slot);
             BattleArena.getMapPool().release(slot);
             future.complete(null);
         }
@@ -477,5 +556,9 @@ public class LiveCompetitionMap implements ArenaLike, CompetitionMap, PostProces
 
     public void setRemote(boolean remote) {
         this.remote = remote;
+    }
+
+    public boolean isCacheResetEnabled() {
+        return this.cacheReset;
     }
 }

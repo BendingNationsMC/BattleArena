@@ -1,6 +1,6 @@
 [versions]
 bstats-bukkit = "3.0.2"
-paper-api     = "1.20.4-R0.1-SNAPSHOT"
+paper-api     = "1.20.6-R0.1-SNAPSHOT"
 worldedit     = "7.2.9"
 fawe          = "2.14.0"
 

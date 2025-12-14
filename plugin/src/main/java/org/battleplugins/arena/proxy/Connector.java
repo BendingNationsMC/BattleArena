@@ -6,7 +6,10 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import org.battleplugins.arena.BattleArena;
 import org.battleplugins.arena.competition.map.LiveCompetitionMap;
+import net.kyori.adventure.text.Component;
+import org.battleplugins.arena.messages.Messages;
 import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import redis.clients.jedis.Jedis;
@@ -232,6 +235,8 @@ public class Connector {
                 }
 
                 String arenaName = object.get("arena").getAsString();
+                final String duelMapName = object.has("map") ? object.get("map").getAsString() : null;
+                String mapName = object.has("map") ? object.get("map").getAsString() : null;
                 org.battleplugins.arena.Arena arena = plugin.getArena(arenaName);
                 if (arena == null) {
                     log.warn("Received queue_join for unknown arena '{}'.", arenaName);
@@ -270,6 +275,12 @@ public class Connector {
                     });
                 }
 
+                if (playerObject.has("origin") && playerObject.get("origin").isJsonPrimitive()) {
+                    serializedPlayer.setOrigin(playerObject.get("origin").getAsString());
+                } else if (!origin.isEmpty()) {
+                    serializedPlayer.setOrigin(origin);
+                }
+
                 Bukkit.getScheduler().runTask(plugin, () ->
                         org.bukkit.Bukkit.getPluginManager().callEvent(
                                 new org.battleplugins.arena.proxy.ProxyQueueJoinEvent(arena, origin, serializedPlayer)
@@ -300,6 +311,7 @@ public class Connector {
                 }
 
                 String arenaName = object.get("arena").getAsString();
+                final String duelMapName = object.has("map") ? object.get("map").getAsString() : null;
                 JsonElement requesterElement = object.get("requester");
                 JsonElement targetElement = object.get("target");
 
@@ -387,11 +399,11 @@ public class Connector {
 
                 String origin = object.has("origin") ? object.get("origin").getAsString() : null;
 
-                Bukkit.getScheduler().runTask(plugin, () -> {
-                    org.bukkit.Bukkit.getPluginManager().callEvent(
-                            new org.battleplugins.arena.proxy.ProxyDuelRequestEvent(arena, requester, target, requesterParty, targetParty, players, origin)
-                    );
-                });
+                    Bukkit.getScheduler().runTask(plugin, () -> {
+                        org.bukkit.Bukkit.getPluginManager().callEvent(
+                                new org.battleplugins.arena.proxy.ProxyDuelRequestEvent(arena, requester, target, requesterParty, targetParty, players, duelMapName, origin)
+                        );
+                    });
 
                 break;
             }
@@ -446,6 +458,18 @@ public class Connector {
                             });
                         }
 
+                        if (playerObject.has("origin") && playerObject.get("origin").isJsonPrimitive()) {
+                            serializedPlayer.setOrigin(playerObject.get("origin").getAsString());
+                        } else if (origin != null && !origin.isEmpty()) {
+                            serializedPlayer.setOrigin(origin);
+                        }
+
+                        if (playerObject.has("origin") && playerObject.get("origin").isJsonPrimitive()) {
+                            serializedPlayer.setOrigin(playerObject.get("origin").getAsString());
+                        } else if (origin != null && !origin.isEmpty()) {
+                            serializedPlayer.setOrigin(origin);
+                        }
+
                         players.add(serializedPlayer);
                     });
 
@@ -468,6 +492,11 @@ public class Connector {
 
                     playersArray.forEach(el -> {
                         JsonObject playerObject = el.getAsJsonObject();
+                        String playerOrigin = playerObject.has("origin") ? playerObject.get("origin").getAsString() : origin;
+                        if (playerOrigin != null && !playerOrigin.isEmpty() && !playerOrigin.equals(thisOrigin)) {
+                            return;
+                        }
+
                         String uuid = playerObject.get("uuid").getAsString();
                         java.util.UUID id = java.util.UUID.fromString(uuid);
                         org.bukkit.entity.Player player = Bukkit.getPlayer(id);
@@ -495,12 +524,18 @@ public class Connector {
                     return;
                 }
 
+                String origin = object.has("origin") ? object.get("origin").getAsString() : null;
                 java.util.List<org.battleplugins.arena.proxy.SerializedPlayer> players = new java.util.ArrayList<>();
+                final String joinOrigin = origin;
                 object.getAsJsonArray("players").forEach(el -> {
                     if (el.isJsonPrimitive()) {
                         // Backwards compatible format: array of UUID strings
                         String uuid = el.getAsString();
-                        players.add(new org.battleplugins.arena.proxy.SerializedPlayer(uuid));
+                        org.battleplugins.arena.proxy.SerializedPlayer primitivePlayer = new org.battleplugins.arena.proxy.SerializedPlayer(uuid);
+                        if (joinOrigin != null && !joinOrigin.isEmpty()) {
+                            primitivePlayer.setOrigin(joinOrigin);
+                        }
+                        players.add(primitivePlayer);
                     } else if (el.isJsonObject()) {
                         JsonObject playerObject = el.getAsJsonObject();
                         String uuid = playerObject.get("uuid").getAsString();
@@ -529,11 +564,15 @@ public class Connector {
                             });
                         }
 
+                        if (playerObject.has("origin") && playerObject.get("origin").isJsonPrimitive()) {
+                            player.setOrigin(playerObject.get("origin").getAsString());
+                        } else if (joinOrigin != null && !joinOrigin.isEmpty()) {
+                            player.setOrigin(joinOrigin);
+                        }
+
                         players.add(player);
                     }
                 });
-
-                String origin = object.has("origin") ? object.get("origin").getAsString() : null;
 
                 org.battleplugins.arena.competition.map.LiveCompetitionMap map =
                         plugin.getMap(arena, mapName);
@@ -566,6 +605,129 @@ public class Connector {
                     // Static remote map: it's already present; just reuse the same queue_match
                     // pipeline so non-host servers only move players once the host is ready.
                     sendQueueMatchForPlayers(arena, map.getName(), origin, players, duel);
+                }
+
+                break;
+            }
+            case "spectate_request": {
+                if (!plugin.getMainConfig().isProxySupport() || !plugin.getMainConfig().isProxyHost()) {
+                    return;
+                }
+
+                ProxySpectateHandler handler = plugin.getProxySpectateHandler();
+                if (handler == null) {
+                    return;
+                }
+
+                String origin = object.has("origin") ? object.get("origin").getAsString() : null;
+                JsonElement spectatorElement = object.get("spectator");
+                org.battleplugins.arena.proxy.SerializedPlayer spectator = deserializePlayer(spectatorElement);
+                if (spectator == null) {
+                    log.warn("Received spectate_request without valid spectator payload.");
+                    return;
+                }
+
+                if ((spectator.getOrigin() == null || spectator.getOrigin().isEmpty()) && origin != null && !origin.isEmpty()) {
+                    spectator.setOrigin(origin);
+                }
+
+                ProxySpectateHandler.ProxySpectateRequest.Mode mode;
+                try {
+                    mode = ProxySpectateHandler.ProxySpectateRequest.Mode.valueOf(object.get("mode").getAsString().toUpperCase(java.util.Locale.ROOT));
+                } catch (IllegalArgumentException ex) {
+                    log.warn("Unknown spectate_request mode: {}", object.get("mode"));
+                    return;
+                }
+
+                org.battleplugins.arena.Arena arena = null;
+                if (object.has("arena")) {
+                    String arenaName = object.get("arena").getAsString();
+                    arena = plugin.getArena(arenaName);
+                }
+
+                java.util.UUID targetId = null;
+                if (object.has("target")) {
+                    try {
+                        targetId = java.util.UUID.fromString(object.get("target").getAsString());
+                    } catch (IllegalArgumentException ignored) {
+                        log.warn("Invalid target UUID in spectate_request: {}", object.get("target").getAsString());
+                    }
+                }
+
+                String targetName = object.has("targetName") ? object.get("targetName").getAsString() : null;
+                String mapName = object.has("map") ? object.get("map").getAsString() : null;
+
+                ProxySpectateHandler.ProxySpectateRequest request =
+                        new ProxySpectateHandler.ProxySpectateRequest(mode, arena, mapName, targetId, targetName, spectator, origin);
+
+                Bukkit.getScheduler().runTask(plugin, () -> handler.handleRequest(request));
+                break;
+            }
+            case "spectate_ready": {
+                if (!plugin.getMainConfig().isProxySupport() || plugin.getMainConfig().isProxyHost()) {
+                    return;
+                }
+
+                String origin = object.has("origin") ? object.get("origin").getAsString() : "";
+                String thisOrigin = plugin.getMainConfig().getProxyServerName();
+                if (thisOrigin == null || thisOrigin.isEmpty()) {
+                    return;
+                }
+
+                if (!origin.isEmpty() && !origin.equals(thisOrigin)) {
+                    return;
+                }
+
+                java.util.UUID id;
+                try {
+                    id = java.util.UUID.fromString(object.get("uuid").getAsString());
+                } catch (IllegalArgumentException ex) {
+                    return;
+                }
+
+                Player player = Bukkit.getPlayer(id);
+                plugin.removePendingProxySpectate(id);
+
+                if (player == null) {
+                    return;
+                }
+
+                String mapName = object.has("map") ? object.get("map").getAsString() : "";
+                if (!mapName.isEmpty()) {
+                    Messages.PROXY_SPECTATE_READY.send(player, mapName);
+                }
+                plugin.sendPlayerToProxyHost(player);
+                break;
+            }
+            case "spectate_reject": {
+                if (!plugin.getMainConfig().isProxySupport() || plugin.getMainConfig().isProxyHost()) {
+                    return;
+                }
+
+                String origin = object.has("origin") ? object.get("origin").getAsString() : "";
+                String thisOrigin = plugin.getMainConfig().getProxyServerName();
+                if (thisOrigin == null || thisOrigin.isEmpty()) {
+                    return;
+                }
+
+                if (!origin.isEmpty() && !origin.equals(thisOrigin)) {
+                    return;
+                }
+
+                java.util.UUID id;
+                try {
+                    id = java.util.UUID.fromString(object.get("uuid").getAsString());
+                } catch (IllegalArgumentException ex) {
+                    return;
+                }
+
+                Player player = Bukkit.getPlayer(id);
+                plugin.removePendingProxySpectate(id);
+
+                if (player != null && object.has("reason")) {
+                    String reasonString = object.get("reason").getAsString();
+                    Component reasonComponent = Messages.deserializeMiniMessage(reasonString);
+                    player.sendMessage(reasonComponent);
                 }
 
                 break;
@@ -731,6 +893,10 @@ public class Connector {
             });
         }
 
+        if (playerObject.has("origin") && playerObject.get("origin").isJsonPrimitive()) {
+            serialized.setOrigin(playerObject.get("origin").getAsString());
+        }
+
         return serialized;
     }
 
@@ -766,6 +932,10 @@ public class Connector {
                 sp.getAbilities().forEach((slot, ability) ->
                         abilitiesObject.addProperty(String.valueOf(slot), ability));
                 playerObject.add("abilities", abilitiesObject);
+            }
+
+            if (sp.getOrigin() != null && !sp.getOrigin().isEmpty()) {
+                playerObject.addProperty("origin", sp.getOrigin());
             }
 
             playersArray.add(playerObject);

@@ -17,6 +17,11 @@ max-backups: 5
 # Set to -1 to disable this limit.
 max-dynamic-maps: 5
 
+# Whether dynamic arenas should stay cached between matches. When enabled, BattleArena
+# will recycle existing dynamic map copies and rebuild them in the background so new
+# matches can start instantly as soon as their slot becomes free.
+cache-dynamic-arenas: false
+
 # Whether joining an arena using /<arena> join without specifying a map should
 # randomly pick an arena, rather than joining the most convenient one. Competitions
 # with players waiting will always be prioritized though, even with this setting

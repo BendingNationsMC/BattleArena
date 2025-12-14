@@ -19,7 +19,9 @@ import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -35,7 +37,8 @@ public class RankedMatchListener implements Listener {
     private static final Logger log = LoggerFactory.getLogger(RankedMatchListener.class);
     private final BattleArena plugin;
     private final RankedService service;
-    private final Map<Competition<?>, Set<UUID>> recentLosers = new ConcurrentHashMap<>();
+    private final Map<Competition<?>, Map<UUID, Player>> recentLosers = new ConcurrentHashMap<>();
+    private final Map<Competition<?>, Map<UUID, Player>> participantSnapshots = new ConcurrentHashMap<>();
     private final Map<UUID, Double> damageGiven = new ConcurrentHashMap<>();
     private final Map<UUID, Double> damageTaken = new ConcurrentHashMap<>();
     private final Map<Competition<?>, Long> competitionStartTime = new ConcurrentHashMap<>();
@@ -70,12 +73,11 @@ public class RankedMatchListener implements Listener {
             return;
         }
 
-        Set<UUID> loserIds = event.getLosers()
-                .stream()
-                .map(ArenaPlayer::getPlayer)
-                .map(Player::getUniqueId)
-                .collect(Collectors.toSet());
-        recentLosers.put(event.getCompetition(), loserIds);
+        Map<UUID, Player> losers = collectPlayers(event.getLosers());
+        if (!losers.isEmpty()) {
+            debug("Recorded {} losers for competition {}", losers.size(), describeCompetition(event.getCompetition()));
+            recentLosers.put(event.getCompetition(), losers);
+        }
     }
 
     @EventHandler
@@ -98,44 +100,78 @@ public class RankedMatchListener implements Listener {
     }
 
     private void processVictory(ArenaVictoryEvent event, Competition<?> competition) {
-        Set<UUID> winners = event.getVictors()
-                .stream()
-                .map(ArenaPlayer::getPlayer)
-                .map(Player::getUniqueId)
-                .collect(Collectors.toSet());
+        Map<UUID, Player> winners = collectPlayers(event.getVictors());
+        if (winners.isEmpty()) {
+            debug("Victory ignored for competition {} - no winner players resolved", describeCompetition(competition));
+            return;
+        }
 
-        Set<UUID> losers = recentLosers.remove(competition);
+        Set<UUID> winnerIds = winners.keySet();
+        Map<UUID, Player> participants = participantSnapshots.getOrDefault(competition, Collections.emptyMap());
+        Map<UUID, Player> losers = recentLosers.remove(competition);
         if (losers == null || losers.isEmpty()) {
-            losers = deriveLosersFromCompetition(competition, winners);
+            if (!participants.isEmpty()) {
+                losers = new HashMap<>(participants);
+                losers.keySet().removeAll(winnerIds);
+                debug("Derived {} losers from participant snapshot for competition {}", losers.size(), describeCompetition(competition));
+            } else {
+                losers = deriveLosersFromCompetition(competition, winnerIds);
+                debug("Recent losers missing for competition {}, derived {} losers from roster", describeCompetition(competition), losers.size());
+            }
+        } else {
+            debug("Using {} tracked losers for competition {}", losers.size(), describeCompetition(competition));
         }
 
         if (losers.isEmpty()) {
+            debug("Cannot process ranked victory for competition {} - no losers resolved", describeCompetition(competition));
+            cleanupParticipants(winnerIds);
+            finalizeCompetition(competition);
             return;
         }
 
         double timeLeft = computeTimeLeft(competition);
+        debug("Processing ranked victory for competition {} (winners={}, losers={}, timeLeft={}s)",
+                describeCompetition(competition),
+                winners.keySet(),
+                losers.keySet(),
+                timeLeft);
 
-        for (UUID winnerId : winners) {
-            Player winnerPlayer = plugin.getServer().getPlayer(winnerId);
+        for (Map.Entry<UUID, Player> winnerEntry : winners.entrySet()) {
+            UUID winnerId = winnerEntry.getKey();
+            Player winnerPlayer = winnerEntry.getValue();
             if (winnerPlayer == null) {
+                log.warn("Unable to resolve Bukkit player for winner {}", winnerId);
                 continue;
             }
 
             Elements winnerElement = resolveElement(winnerPlayer);
             RankedMatchFactors winnerFactors = buildMatchFactors(winnerId, winnerPlayer, timeLeft);
 
-            for (UUID loserId : losers) {
-                Player loserPlayer = plugin.getServer().getPlayer(loserId);
-                Elements loserElement = loserPlayer != null ? resolveElement(loserPlayer) : Elements.AIR;
+            for (Map.Entry<UUID, Player> loserEntry : losers.entrySet()) {
+                UUID loserId = loserEntry.getKey();
+                Player loserPlayer = loserEntry.getValue();
+                if (loserPlayer == null) {
+                    log.warn("Unable to resolve Bukkit player for loser {}", loserId);
+                    continue;
+                }
+
+                Elements loserElement = resolveElement(loserPlayer);
                 RankedMatchFactors loserFactors = buildMatchFactors(loserId, loserPlayer, timeLeft);
 
+                debug("Updating ranked match result winner={} ({}) vs loser={} ({}) | winnerDamage={} loserDamage={}",
+                        winnerPlayer.getName(),
+                        winnerElement,
+                        loserPlayer.getName(),
+                        loserElement,
+                        winnerFactors.winnerDamageGiven(),
+                        loserFactors.winnerDamageGiven());
                 service.updateAfterMatch(winnerId, loserId, winnerElement, loserElement, winnerFactors, loserFactors);
             }
         }
 
         // Clean tracked data after processing all participants.
-        cleanupParticipants(winners);
-        cleanupParticipants(losers);
+        cleanupParticipants(winnerIds);
+        cleanupParticipants(losers.keySet());
         finalizeCompetition(competition);
     }
 
@@ -143,15 +179,23 @@ public class RankedMatchListener implements Listener {
         HandlerList.unregisterAll(this);
     }
 
-    private Set<UUID> deriveLosersFromCompetition(Competition<?> competition, Set<UUID> winnerIds) {
+    private Map<UUID, Player> deriveLosersFromCompetition(Competition<?> competition, Set<UUID> winnerIds) {
         if (competition instanceof LiveCompetition<?> live) {
-            return live.getPlayers().stream()
-                    .map(ArenaPlayer::getPlayer)
-                    .map(Player::getUniqueId)
-                    .filter(id -> !winnerIds.contains(id))
-                    .collect(Collectors.toSet());
+            Map<UUID, Player> losers = new HashMap<>();
+            for (ArenaPlayer arenaPlayer : live.getPlayers()) {
+                Player player = arenaPlayer.getPlayer();
+                if (player == null) {
+                    continue;
+                }
+                UUID id = player.getUniqueId();
+                if (winnerIds.contains(id)) {
+                    continue;
+                }
+                losers.put(id, player);
+            }
+            return losers;
         }
-        return Collections.emptySet();
+        return Collections.emptyMap();
     }
 
     // Looking at the player element
@@ -210,44 +254,55 @@ public class RankedMatchListener implements Listener {
 
         if (org.battleplugins.arena.competition.phase.CompetitionPhaseType.INGAME.equals(event.getPhase().getType())) {
             competitionStartTime.put(competition, System.currentTimeMillis());
+            Map<UUID, Player> snapshot = snapshotCompetitionPlayers(competition);
+            if (!snapshot.isEmpty()) {
+                participantSnapshots.put(competition, snapshot);
+                debug("Snapshot {} participants for competition {}", snapshot.size(), describeCompetition(competition));
+            } else {
+                participantSnapshots.remove(competition);
+                debug("Unable to snapshot participants for competition {}", describeCompetition(competition));
+            }
         }
     }
 
     private void processDraw(Competition<?> competition) {
-        if (!(competition instanceof LiveCompetition<?> liveCompetition)) {
-            finalizeCompetition(competition);
-            return;
-        }
-
-        Set<ArenaPlayer> arenaPlayers = liveCompetition.getPlayers();
-        if (arenaPlayers.size() < 2) {
+        Map<UUID, Player> participants = participantSnapshots.get(competition);
+        if (participants == null || participants.size() < 2) {
+            debug("Skipping draw processing for competition {} - participants snapshot missing or too small", describeCompetition(competition));
             finalizeCompetition(competition);
             return;
         }
 
         double timeLeft = computeTimeLeft(competition);
-        List<UUID> participants = arenaPlayers.stream()
-                .map(ArenaPlayer::getPlayer)
-                .map(Player::getUniqueId)
+        List<Map.Entry<UUID, Player>> participantEntries = new ArrayList<>(participants.entrySet());
+        List<UUID> participantIds = participantEntries.stream()
+                .map(Map.Entry::getKey)
                 .collect(Collectors.toList());
 
-        for (int i = 0; i < participants.size(); i++) {
-            UUID firstId = participants.get(i);
-            Player firstPlayer = plugin.getServer().getPlayer(firstId);
-            Elements firstElement = firstPlayer != null ? resolveElement(firstPlayer) : Elements.AIR;
+        for (int i = 0; i < participantEntries.size(); i++) {
+            Map.Entry<UUID, Player> firstEntry = participantEntries.get(i);
+            Player firstPlayer = firstEntry.getValue();
+            UUID firstId = firstEntry.getKey();
+            Elements firstElement = resolveElement(firstPlayer);
             RankedMatchFactors firstFactors = buildMatchFactors(firstId, firstPlayer, timeLeft);
 
-            for (int j = i + 1; j < participants.size(); j++) {
-                UUID secondId = participants.get(j);
-                Player secondPlayer = plugin.getServer().getPlayer(secondId);
-                Elements secondElement = secondPlayer != null ? resolveElement(secondPlayer) : Elements.AIR;
+            for (int j = i + 1; j < participantEntries.size(); j++) {
+                Map.Entry<UUID, Player> secondEntry = participantEntries.get(j);
+                Player secondPlayer = secondEntry.getValue();
+                UUID secondId = secondEntry.getKey();
+                Elements secondElement = resolveElement(secondPlayer);
                 RankedMatchFactors secondFactors = buildMatchFactors(secondId, secondPlayer, timeLeft);
 
-                service.updateAfterDraw(firstId, secondId, firstElement, secondElement, firstFactors, secondFactors);
+                    debug("Updating ranked draw between {} ({}) and {} ({})",
+                            firstPlayer.getName(),
+                            firstElement,
+                            secondPlayer.getName(),
+                            secondElement);
+                    service.updateAfterDraw(firstId, secondId, firstElement, secondElement, firstFactors, secondFactors);
+                }
             }
-        }
 
-        cleanupParticipants(participants);
+        cleanupParticipants(participantIds);
         recentLosers.remove(competition);
         finalizeCompetition(competition);
     }
@@ -276,6 +331,48 @@ public class RankedMatchListener implements Listener {
 
     private void finalizeCompetition(Competition<?> competition) {
         competitionStartTime.remove(competition);
+        participantSnapshots.remove(competition);
         processed.remove(competition);
+    }
+
+    private Map<UUID, Player> collectPlayers(Set<ArenaPlayer> arenaPlayers) {
+        Map<UUID, Player> players = new HashMap<>();
+        for (ArenaPlayer arenaPlayer : arenaPlayers) {
+            Player player = arenaPlayer.getPlayer();
+            if (player == null) {
+                debug("Skipping ArenaPlayer {} because Bukkit player handle is null", arenaPlayer.describe());
+                continue;
+            }
+            players.put(player.getUniqueId(), player);
+        }
+        if (!players.isEmpty()) {
+            debug("Collected {} players from event payload", players.size());
+        }
+        return players;
+    }
+
+    private Map<UUID, Player> snapshotCompetitionPlayers(Competition<?> competition) {
+        if (competition instanceof LiveCompetition<?> liveCompetition) {
+            Map<UUID, Player> snapshot = new HashMap<>();
+            for (ArenaPlayer arenaPlayer : liveCompetition.getPlayers()) {
+                Player player = arenaPlayer.getPlayer();
+                if (player != null) {
+                    snapshot.put(player.getUniqueId(), player);
+                }
+            }
+            return snapshot;
+        }
+        return Collections.emptyMap();
+    }
+
+    private String describeCompetition(Competition<?> competition) {
+        if (competition == null) {
+            return "unknown";
+        }
+        return competition.getClass().getSimpleName() + "@" + Integer.toHexString(System.identityHashCode(competition));
+    }
+
+    private void debug(String message, Object... args) {
+        plugin.debug("[Ranked] " + message, args);
     }
 }

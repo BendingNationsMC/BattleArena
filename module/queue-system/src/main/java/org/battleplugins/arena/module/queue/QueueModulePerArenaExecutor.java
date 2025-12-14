@@ -53,11 +53,11 @@ public class QueueModulePerArenaExecutor implements SubCommandExecutor {
 
         SerializedPlayer serialized = SerializedPlayer.toSerializedPlayer(player);
         java.util.UUID playerId = player.getUniqueId();
-        boolean adding = !module.getLocalQueued().contains(playerId);
+        boolean adding = !module.isLocallyQueued(playerId);
         if (adding) {
-            module.getLocalQueued().add(playerId);
+            module.addLocalQueue(playerId);
         } else {
-            module.getLocalQueued().remove(playerId);
+            module.removeLocalQueue(playerId);
             // Leaving the queue locally; clear any pending proxy join state.
             plugin.removePendingProxyJoin(playerId);
         }

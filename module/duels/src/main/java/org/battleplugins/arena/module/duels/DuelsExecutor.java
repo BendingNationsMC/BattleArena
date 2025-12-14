@@ -1,10 +1,17 @@
 package org.battleplugins.arena.module.duels;
 
 import org.battleplugins.arena.Arena;
-import org.battleplugins.arena.ArenaPlayer;
 import org.battleplugins.arena.BattleArena;
 import org.battleplugins.arena.command.ArenaCommand;
 import org.battleplugins.arena.command.SubCommandExecutor;
+import org.battleplugins.arena.competition.map.LiveCompetitionMap;
+import org.battleplugins.arena.competition.map.MapType;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.text.event.HoverEvent;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
+import org.battleplugins.arena.duel.DuelSelectionRegistry;
 import org.battleplugins.arena.feature.party.Parties;
 import org.battleplugins.arena.feature.party.Party;
 import org.battleplugins.arena.feature.party.PartyMember;
@@ -37,6 +44,12 @@ public class DuelsExecutor implements SubCommandExecutor {
             return;
         }
 
+        BattleArena plugin = BattleArena.getInstance();
+        if (plugin != null && plugin.getMainConfig().isProxySupport() && plugin.getMainConfig().isProxyHost()) {
+            Messages.ARENA_ERROR.send(player, "Duels must be initiated from a non-host server.");
+            return;
+        }
+
         Party targetParty = Parties.getParty(target.getUniqueId());
         if (targetParty != null) {
             PartyMember leader = targetParty.getLeader();
@@ -56,6 +69,22 @@ public class DuelsExecutor implements SubCommandExecutor {
             return;
         }
 
+        String preferredMap = null;
+        if (plugin != null) {
+            DuelSelectionRegistry registry = plugin.getDuelSelectionRegistry();
+            DuelSelectionRegistry.DuelSelection selection = registry.consume(player.getUniqueId(), target.getUniqueId(), this.arena.getName()).orElse(null);
+            if (selection != null) {
+                LiveCompetitionMap selectedMap = plugin.getMap(this.arena, selection.mapName());
+                if (selectedMap == null || selectedMap.getType() != MapType.DYNAMIC) {
+                    Messages.ARENA_ERROR.send(player, "Selected duel map is no longer available. Using a random map.");
+                } else if (plugin.getMainConfig().isProxySupport() && plugin.getMainConfig().isProxyHost() && !selectedMap.isRemote()) {
+                    Messages.ARENA_ERROR.send(player, "Selected duel map cannot run on the proxy host. Using a random map.");
+                } else {
+                    preferredMap = selectedMap.getName();
+                }
+            }
+        }
+
         DuelsMessages.DUEL_REQUEST_SENT.send(player, target.getName());
         DuelsMessages.DUEL_REQUEST_RECEIVED.send(
                 target,
@@ -66,7 +95,22 @@ public class DuelsExecutor implements SubCommandExecutor {
                 player.getName()
         );
 
-        this.module.addDuelRequest(player, target);
+        Component acceptButton = Component.text("[ACCEPT]", NamedTextColor.GREEN, TextDecoration.BOLD)
+                .clickEvent(ClickEvent.runCommand("/" + this.parentCommand + " duel accept " + player.getName()))
+                .hoverEvent(HoverEvent.showText(Component.text("Click to accept duel request.", NamedTextColor.GREEN)));
+
+        Component denyButton = Component.text("[DENY]", NamedTextColor.RED, TextDecoration.BOLD)
+                .clickEvent(ClickEvent.runCommand("/" + this.parentCommand + " duel deny " + player.getName()))
+                .hoverEvent(HoverEvent.showText(Component.text("Click to deny duel request.", NamedTextColor.RED)));
+
+        target.sendMessage(Messages.PREFIX.toComponent()
+                .append(Component.space())
+                .append(Component.text("Respond: ", NamedTextColor.GOLD))
+                .append(acceptButton)
+                .append(Component.text(" ", NamedTextColor.GRAY))
+                .append(denyButton));
+
+        this.module.addDuelRequest(player, target, preferredMap);
     }
 
     @ArenaCommand(commands = "duel", subCommands = "accept", description = "Accept a duel request.", permissionNode = "duel.accept")
@@ -91,9 +135,14 @@ public class DuelsExecutor implements SubCommandExecutor {
 
         this.module.removeDuelRequest(request);
 
-        Bukkit.getScheduler().runTaskLater(BattleArena.getInstance(), () -> {
-            this.module.acceptDuel(this.arena, target, player, request.getRequesterParty(), request.getTargetParty());
-        }, 100);
+        BattleArena plugin = BattleArena.getInstance();
+        if (plugin != null) {
+            Bukkit.getScheduler().runTask(plugin, () ->
+                    this.module.acceptDuel(this.arena, target, player, request.getRequesterParty(), request.getTargetParty(), request.getPreferredMap())
+            );
+        } else {
+            this.module.acceptDuel(this.arena, target, player, request.getRequesterParty(), request.getTargetParty(), request.getPreferredMap());
+        }
     }
     
     @ArenaCommand(commands = "duel", subCommands = "deny", description = "Deny a duel request.", permissionNode = "duel.deny")

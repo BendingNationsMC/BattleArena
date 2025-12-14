@@ -52,15 +52,18 @@ public class Duels implements ArenaModuleInitializer {
         private final UUID target;
         private final List<UUID> requesterParty;
         private final List<UUID> targetParty;
+        private final @Nullable String preferredMap;
 
         private DuelRequest(UUID requester,
                             UUID target,
                             List<UUID> requesterParty,
-                            List<UUID> targetParty) {
+                            List<UUID> targetParty,
+                            @Nullable String preferredMap) {
             this.requester = requester;
             this.target = target;
             this.requesterParty = requesterParty;
             this.targetParty = targetParty;
+            this.preferredMap = preferredMap;
         }
 
         UUID getRequester() {
@@ -78,6 +81,11 @@ public class Duels implements ArenaModuleInitializer {
         List<UUID> getTargetParty() {
             return this.targetParty;
         }
+
+        @Nullable
+        String getPreferredMap() {
+            return this.preferredMap;
+        }
     }
 
     private static final class ProxyDuel {
@@ -87,18 +95,21 @@ public class Duels implements ArenaModuleInitializer {
         private final List<UUID> requesterParty;
         private final List<UUID> targetParty;
         private final Map<UUID, SerializedPlayer> serializedPlayers;
+        private final @Nullable String mapName;
 
         private ProxyDuel(Arena arena,
                           UUID requester,
                           UUID target,
                           Collection<UUID> requesterParty,
                           Collection<UUID> targetParty,
-                          Collection<SerializedPlayer> serializedPlayers) {
+                          Collection<SerializedPlayer> serializedPlayers,
+                          @Nullable String mapName) {
             this.arena = arena;
             this.requester = requester;
             this.target = target;
             this.requesterParty = normalizeRoster(requester, requesterParty);
             this.targetParty = normalizeRoster(target, targetParty);
+            this.mapName = mapName;
             if (serializedPlayers != null && !serializedPlayers.isEmpty()) {
                 Map<UUID, SerializedPlayer> players = new LinkedHashMap<>();
                 for (SerializedPlayer serializedPlayer : serializedPlayers) {
@@ -145,6 +156,10 @@ public class Duels implements ArenaModuleInitializer {
             LinkedHashSet<UUID> all = new LinkedHashSet<>(requesterParty);
             all.addAll(targetParty);
             return all;
+        }
+
+        private @Nullable String getMapName() {
+            return this.mapName;
         }
     }
 
@@ -250,11 +265,16 @@ public class Duels implements ArenaModuleInitializer {
     }
 
     public void addDuelRequest(Player requester, Player target) {
+        this.addDuelRequest(requester, target, null);
+    }
+
+    public void addDuelRequest(Player requester, Player target, @Nullable String preferredMap) {
         DuelRequest request = new DuelRequest(
                 requester.getUniqueId(),
                 target.getUniqueId(),
                 this.capturePartyRoster(requester),
-                this.capturePartyRoster(target)
+                this.capturePartyRoster(target),
+                preferredMap
         );
 
         this.duelRequestsByRequester.put(request.getRequester(), request);
@@ -271,7 +291,7 @@ public class Duels implements ArenaModuleInitializer {
     }
 
     public void acceptDuel(Arena arena, Player requester, Player opponent) {
-        this.acceptDuel(arena, requester, opponent, this.capturePartyRoster(requester), this.capturePartyRoster(opponent));
+        this.acceptDuel(arena, requester, opponent, this.capturePartyRoster(requester), this.capturePartyRoster(opponent), null);
     }
 
     public void acceptDuel(Arena arena,
@@ -279,6 +299,15 @@ public class Duels implements ArenaModuleInitializer {
                            Player opponent,
                            @Nullable Collection<UUID> requesterRoster,
                            @Nullable Collection<UUID> opponentRoster) {
+        this.acceptDuel(arena, requester, opponent, requesterRoster, opponentRoster, null);
+    }
+
+    public void acceptDuel(Arena arena,
+                           Player requester,
+                           Player opponent,
+                           @Nullable Collection<UUID> requesterRoster,
+                           @Nullable Collection<UUID> opponentRoster,
+                           @Nullable String preferredMapName) {
         BattleArena plugin = arena.getPlugin();
         boolean proxySupport = plugin.getMainConfig().isProxySupport();
         boolean proxyHost = plugin.getMainConfig().isProxyHost();
@@ -297,6 +326,20 @@ public class Duels implements ArenaModuleInitializer {
         allParticipants.addAll(requesterParty);
         allParticipants.addAll(opponentParty);
 
+        LiveCompetitionMap preferredMap = null;
+        if (preferredMapName != null) {
+            preferredMap = plugin.getMap(arena, preferredMapName);
+            if (preferredMap == null || preferredMap.getType() != MapType.DYNAMIC) {
+                allParticipants.forEach(player -> Messages.ARENA_ERROR.send(player, "Selected duel map is no longer available."));
+                return;
+            }
+
+            if (proxySupport && proxyHost && !preferredMap.isRemote()) {
+                allParticipants.forEach(player -> Messages.ARENA_ERROR.send(player, "Selected duel map is not available on the proxy host."));
+                return;
+            }
+        }
+
         // If this server is not the proxy host but proxy support is enabled, we should
         // forward the duel to the host without requiring a local competition.
         if (proxySupport && !proxyHost) {
@@ -307,27 +350,19 @@ public class Duels implements ArenaModuleInitializer {
                 }
             }
 
-            // Choose a dynamic map name for the duel; this only needs to match a configured
-            // map on the proxy host, not an active competition on this server.
-            List<LiveCompetitionMap> dynamicMaps = plugin.getMaps(arena)
-                    .stream()
-                    .filter(map -> map.getType() == MapType.DYNAMIC)
-                    .toList();
-
-            if (dynamicMaps.isEmpty()) {
+            LiveCompetitionMap targetMap = preferredMap != null ? preferredMap : this.selectFallbackMap(plugin, arena, false);
+            if (targetMap == null) {
                 allParticipants.forEach(Messages.NO_OPEN_ARENAS::send);
                 return;
             }
 
-            LiveCompetitionMap map = dynamicMaps.iterator().next();
-
-            this.sendProxyDuelRequest(plugin, arena, map.getName(), requester, opponent, requesterParty, opponentParty, allParticipants);
+            this.sendProxyDuelRequest(plugin, arena, targetMap, requester, opponent, requesterParty, opponentParty, allParticipants);
 
             return;
         }
 
         // Local or proxy host: find or create an open competition and join immediately.
-        LiveCompetition<?> competition = findOrJoinCompetition(arena);
+        LiveCompetition<?> competition = findOrJoinCompetition(arena, preferredMap);
         if (competition == null) {
             allParticipants.forEach(Messages.NO_OPEN_ARENAS::send);
             return;
@@ -361,7 +396,7 @@ public class Duels implements ArenaModuleInitializer {
     }
 
     public void handleProxyDuelRequest(ProxyDuelRequestEvent event) {
-        ProxyDuel duel = new ProxyDuel(event.getArena(), event.getRequesterUuid(), event.getTargetUuid(), event.getRequesterPartyMembers(), event.getTargetPartyMembers(), event.getPlayers());
+        ProxyDuel duel = new ProxyDuel(event.getArena(), event.getRequesterUuid(), event.getTargetUuid(), event.getRequesterPartyMembers(), event.getTargetPartyMembers(), event.getPlayers(), event.getMapName());
         duel.allParticipants().forEach(id -> this.proxyDuels.put(id, duel));
         String origin = event.getOriginServer();
         if (origin != null && !origin.isEmpty()) {
@@ -393,12 +428,12 @@ public class Duels implements ArenaModuleInitializer {
             }
         });
 
-        this.acceptDuel(duel.arena, requesterPlayer, targetPlayer, duel.getRequesterParty(), duel.getTargetParty());
+        this.acceptDuel(duel.arena, requesterPlayer, targetPlayer, duel.getRequesterParty(), duel.getTargetParty(), duel.getMapName());
     }
 
     private void sendProxyDuelRequest(BattleArena plugin,
                                       Arena arena,
-                                      String mapName,
+                                      LiveCompetitionMap map,
                                       Player requester,
                                       Player opponent,
                                       Set<Player> requesterParty,
@@ -415,7 +450,7 @@ public class Duels implements ArenaModuleInitializer {
         JsonObject joinPayload = new JsonObject();
         joinPayload.addProperty("type", "arena_join");
         joinPayload.addProperty("arena", arena.getName());
-        joinPayload.addProperty("map", mapName);
+        joinPayload.addProperty("map", map.getName());
         joinPayload.addProperty("duel", true);
 
         JsonArray playerData = new JsonArray();
@@ -433,7 +468,7 @@ public class Duels implements ArenaModuleInitializer {
         JsonObject duelPayload = new JsonObject();
         duelPayload.addProperty("type", "duel_req");
         duelPayload.addProperty("arena", arena.getName());
-        duelPayload.addProperty("map", mapName);
+        duelPayload.addProperty("map", map.getName());
         duelPayload.add("requester", this.serializePlayer(requester));
         duelPayload.add("target", this.serializePlayer(opponent));
         duelPayload.add("requesterParty", this.serializeRoster(requesterParty));
@@ -458,7 +493,7 @@ public class Duels implements ArenaModuleInitializer {
         return array;
     }
 
-    private LiveCompetition<?> findOrJoinCompetition(Arena arena) {
+    private LiveCompetition<?> findOrJoinCompetition(Arena arena, @Nullable LiveCompetitionMap preferredMap) {
         BattleArena plugin = arena.getPlugin();
 
         List<Competition<?>> openCompetitions = plugin.getCompetitions(arena)
@@ -466,29 +501,21 @@ public class Duels implements ArenaModuleInitializer {
                 .filter(competition -> competition instanceof LiveCompetition<?> liveCompetition
                         && liveCompetition.getPhaseManager().getCurrentPhase().canJoin()
                         && liveCompetition.getPlayers().isEmpty()
+                        && (preferredMap == null || liveCompetition.getMap().getName().equalsIgnoreCase(preferredMap.getName()))
                 )
                 .toList();
 
         // Ensure we have found an open competition
         if (openCompetitions.isEmpty()) {
-            List<LiveCompetitionMap> dynamicMaps = plugin.getMaps(arena)
-                    .stream()
-                    .filter(map -> map.getType() == MapType.DYNAMIC)
-                    .filter(map -> {
-                        // When running as the proxy host, prefer maps marked as proxy
-                        // so only designated proxy maps are used for these duels.
-                        if (plugin.getMainConfig().isProxySupport() && plugin.getMainConfig().isProxyHost()) {
-                            return map.isRemote();
-                        }
-                        return true;
-                    })
-                    .toList();
-
-            if (dynamicMaps.isEmpty()) {
-                return null;
+            LiveCompetitionMap map = preferredMap;
+            if (map == null) {
+                boolean requireRemote = plugin.getMainConfig().isProxySupport() && plugin.getMainConfig().isProxyHost();
+                map = this.selectFallbackMap(plugin, arena, requireRemote);
             }
 
-            LiveCompetitionMap map = dynamicMaps.iterator().next();
+            if (map == null) {
+                return null;
+            }
 
             LiveCompetition<?> competition = map.createDynamicCompetition(arena);
             arena.getPlugin().addCompetition(arena, competition);
@@ -496,6 +523,15 @@ public class Duels implements ArenaModuleInitializer {
         } else {
             return (LiveCompetition<?>) openCompetitions.iterator().next();
         }
+    }
+
+    private @Nullable LiveCompetitionMap selectFallbackMap(BattleArena plugin, Arena arena, boolean requireRemote) {
+        return plugin.getMaps(arena)
+                .stream()
+                .filter(map -> map.getType() == MapType.DYNAMIC)
+                .filter(map -> !requireRemote || map.isRemote())
+                .findFirst()
+                .orElse(null);
     }
 
     private Set<Player> collectPartyParticipants(BattleArena plugin,
@@ -632,6 +668,9 @@ public class Duels implements ArenaModuleInitializer {
             serialized.getAbilities().forEach((slot, ability) ->
                     abilitiesObject.addProperty(String.valueOf(slot), ability));
             playerObject.add("abilities", abilitiesObject);
+        }
+        if (serialized.getOrigin() != null && !serialized.getOrigin().isEmpty()) {
+            playerObject.addProperty("origin", serialized.getOrigin());
         }
         return playerObject;
     }

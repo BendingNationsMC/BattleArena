@@ -11,6 +11,8 @@ import org.battleplugins.arena.BattleArena;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
+import org.jetbrains.annotations.Nullable;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -19,6 +21,7 @@ public class SerializedPlayer {
     private HashMap<Integer, String> abilities = new HashMap<>();
     private List<Elements> elements = new ArrayList<>();
     private final String uuid;
+    private String origin;
 
     public SerializedPlayer(String uuid) {
         this.uuid = uuid;
@@ -28,6 +31,11 @@ public class SerializedPlayer {
         this.uuid = uuid;
         this.elements = elements;
         this.abilities = abilities;
+    }
+
+    public SerializedPlayer(String uuid, List<Elements> elements, HashMap<Integer, String> abilities, @Nullable String origin) {
+        this(uuid, elements, abilities);
+        this.origin = origin;
     }
 
     public List<Elements> getElements() {
@@ -40,6 +48,14 @@ public class SerializedPlayer {
 
     public String getUuid() {
         return uuid;
+    }
+
+    public @Nullable String getOrigin() {
+        return origin;
+    }
+
+    public void setOrigin(@Nullable String origin) {
+        this.origin = origin;
     }
 
     public void start(Player player) {
@@ -78,6 +94,15 @@ public class SerializedPlayer {
 
         HashMap<Integer, String> abilities = new HashMap<>(bPlayer.getAbilities());
 
-        return new SerializedPlayer(player.getUniqueId().toString(), elements, abilities);
+        SerializedPlayer serializedPlayer = new SerializedPlayer(player.getUniqueId().toString(), elements, abilities);
+        BattleArena plugin = BattleArena.getInstance();
+        if (plugin != null) {
+            String origin = plugin.getMainConfig().getProxyServerName();
+            if (origin != null && !origin.isEmpty()) {
+                serializedPlayer.setOrigin(origin);
+            }
+        }
+
+        return serializedPlayer;
     }
 }

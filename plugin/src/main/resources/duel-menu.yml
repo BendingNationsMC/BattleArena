@@ -1,0 +1,58 @@
+# This file controls the global /duel menu.
+# You can freely customize the layout, icons, and text without recompiling the plugin.
+# Available placeholders: {arena}, {map}, {map_type}, {map_count}, {target}
+
+# Arenas listed here will be hidden from the GUI.
+blacklisted-arenas: []
+
+arena-menu:
+  # Title of the first menu that lists each arena type.
+  title: "&6Select Arena Type"
+  # Inventory rows (1-6).
+  rows: 3
+  filler:
+    material: GRAY_STAINED_GLASS_PANE
+    name: " "
+  # Default icon used for arenas without an override below.
+  default-item:
+    material: DIAMOND_SWORD
+    name: "&e{arena}"
+    lore: []
+  # Optional per-arena overrides.
+  # Use lowercase arena names as keys. Specify slot to lock the icon to a position (0-53).
+  arenas:
+    # example-arena:
+    #   material: IRON_SWORD
+    #   name: "&bExample Arena"
+    #   lore:
+    #     - "&7Custom description line."
+    #   slot: 10
+
+map-menu:
+  title: "&6Select Map - {arena}"
+  rows: 4
+  filler:
+    material: BLACK_STAINED_GLASS_PANE
+    name: " "
+  default-item:
+    material: PAPER
+    name: "&f{map}"
+    lore: []
+  # Optional defaults for every map inside a specific arena.
+  arena-map-defaults:
+    # sumo:
+    #   material: SNOWBALL
+    #   name: "&b{map}"
+  # Optional per-map overrides. Use the arena name as the parent key, with map names beneath.
+  maps:
+    # sumo:
+    #   glacier:
+    #     material: ICE
+    #     name: "&bGlacier"
+    #     lore:
+    #       - "&7Slippery fights"
+  back-button:
+    slot: 27
+    material: ARROW
+    name: "&c« Back"
+    lore: []

@@ -230,6 +230,10 @@ public class CompetitionManager {
             return;
         }
 
+        if (this.plugin.getDynamicArenaCache().recycle(map)) {
+            return;
+        }
+
         if (map.getBounds() == null) {
             this.plugin.info("No bounds found.");
             return;
@@ -240,6 +244,7 @@ public class CompetitionManager {
         BlockUtil.wipeRegionAsync(map.getWorld(), map.getBounds(), () -> {
             BlockUtil.unticketRegion(map.getWorld(), map.getBounds(), BattleArena.getInstance());
 
+            BattleArena.getInstanceAllocator().release(map.getSlot());
             BattleArena.getMapPool().release(map.getSlot());
         });
     }

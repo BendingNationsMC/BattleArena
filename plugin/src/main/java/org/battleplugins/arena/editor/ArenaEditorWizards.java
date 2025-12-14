@@ -4,6 +4,7 @@ import io.papermc.paper.math.Position;
 import org.battleplugins.arena.BattleArena;
 import org.battleplugins.arena.competition.Competition;
 import org.battleplugins.arena.competition.CompetitionType;
+import org.battleplugins.arena.competition.map.ElementMatchup;
 import org.battleplugins.arena.competition.map.LiveCompetitionMap;
 import org.battleplugins.arena.competition.map.MapType;
 import org.battleplugins.arena.competition.map.options.Bounds;
@@ -61,45 +62,16 @@ public final class ArenaEditorWizards {
             ))
             .addStage(MapOption.MATCHUPS, new TextInputStage<>(
                     Messages.MAP_SET_MATCHUPS,
-                    Messages.INVALID_INPUT.withContext("AIR, WATER, EARTH, FIRE, CHI"),
+                    Messages.INVALID_INPUT.withContext("FIREvEARTH, EARTHvAIR"),
                     (ctx, input) -> {
-                        String trimmed = input.trim();
-                        if (trimmed.isEmpty()) {
-                            return true; // No matchups specified
+                        try {
+                            parseMatchupInput(input);
+                            return true;
+                        } catch (IllegalArgumentException ex) {
+                            return false;
                         }
-                        String[] parts = trimmed.split(",");
-                        for (String part : parts) {
-                            String name = part.trim().toUpperCase(Locale.ROOT);
-                            if (name.isEmpty()) {
-                                continue;
-                            }
-                            try {
-                                org.battleplugins.arena.proxy.Elements.valueOf(name);
-                            } catch (IllegalArgumentException ex) {
-                                return false;
-                            }
-                        }
-                        return true;
                     },
-                    ctx -> input -> {
-                        String trimmed = input.trim();
-                        List<org.battleplugins.arena.proxy.Elements> elements = new java.util.ArrayList<>();
-                        if (!trimmed.isEmpty()) {
-                            String[] parts = trimmed.split(",");
-                            for (String part : parts) {
-                                String name = part.trim().toUpperCase(Locale.ROOT);
-                                if (name.isEmpty()) {
-                                    continue;
-                                }
-                                try {
-                                    elements.add(org.battleplugins.arena.proxy.Elements.valueOf(name));
-                                } catch (IllegalArgumentException ignored) {
-                                    // already validated, so this shouldn't happen
-                                }
-                            }
-                        }
-                        ctx.setMatchups(elements);
-                    }
+                    ctx -> input -> ctx.setMatchups(parseMatchupInput(input))
             ))
             .addStage(MapOption.MIN_POS, new PositionInputStage<>(Messages.MAP_SET_MIN_POSITION, ctx -> ctx::setMin))
             .addStage(MapOption.MAX_POS, new PositionInputStage<>(Messages.MAP_SET_MAX_POSITION, ctx -> ctx::setMax))
@@ -192,5 +164,25 @@ public final class ArenaEditorWizards {
 
     public static <E extends EditorContext<E>> ArenaEditorWizard<E> createWizard(ArenaEditorWizard.ContextFactory<E> contextFactory) {
         return new ArenaEditorWizard<>(BattleArena.getInstance(), contextFactory);
+    }
+
+    private static List<ElementMatchup> parseMatchupInput(String input) {
+        String trimmed = input == null ? "" : input.trim();
+        if (trimmed.isEmpty()) {
+            return java.util.Collections.emptyList();
+        }
+
+        List<ElementMatchup> matchups = new java.util.ArrayList<>();
+        String[] parts = trimmed.split(",");
+        for (String part : parts) {
+            String token = part.trim();
+            if (token.isEmpty()) {
+                continue;
+            }
+
+            matchups.add(ElementMatchup.parse(token));
+        }
+
+        return matchups;
     }
 }

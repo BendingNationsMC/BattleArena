@@ -27,6 +27,7 @@ import java.util.stream.Stream;
 
 public class Util {
     private static final LegacyComponentSerializer LEGACY_SERIALIZER = LegacyComponentSerializer.builder()
+            .character('&')
             .hexColors()
             .useUnusualXRepeatedCharacterHexFormat()
             .build();

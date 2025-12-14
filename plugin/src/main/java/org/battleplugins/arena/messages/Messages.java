@@ -66,6 +66,13 @@ public final class Messages {
     public static final Message ARENA_CANNOT_KICK_SELF = error("arena-cannot-kick-self", "You cannot kick yourself from the arena! Use <secondary>/{} leave</secondary> to leave the Arena.");
     public static final Message ARENA_KICKED_PLAYER = error("arena-kicked-player", "You have been kicked from the arena!");
     public static final Message ARENA_SPECTATE = info("arena-spectate", "You are now spectating <secondary>{}</secondary>!");
+    public static final Message PROXY_SPECTATE_PENDING = error("proxy-spectate-pending", "A proxy spectate request is already in progress. Please wait.");
+    public static final Message PROXY_SPECTATE_PREPARING = info("proxy-spectate-preparing", "Preparing the remote arena. Please wait...");
+    public static final Message PROXY_SPECTATE_UNAVAILABLE = error("proxy-spectate-unavailable", "Cannot spectate via proxy right now. Please try again later.");
+    public static final Message PROXY_SPECTATE_READY = info("proxy-spectate-ready", "Remote arena <secondary>{}</secondary> is ready. Sending you to the host...");
+    public static final Message PROXY_SPECTATE_TARGET_NOT_FOUND = error("proxy-spectate-target-not-found", "Could not find that player on the proxy host.");
+    public static final Message PROXY_SPECTATE_TARGET_NOT_IN_ARENA = error("proxy-spectate-target-not-in-arena", "That player is not currently in an arena.");
+    public static final Message PROXY_SPECTATE_ALREADY_PENDING = error("proxy-spectate-already-pending", "A proxy spectate transfer is already awaiting your arrival.");
     public static final Message ARENA_LEFT = info("arena-left", "You have left <secondary>{}</secondary>!");
     public static final Message ARENA_REMOVED = success("arena-removed", "The arena <secondary>{}</secondary> has been removed!");
     public static final Message NOT_EVENT = error("arena-not-event", "The specified arena is not an event!");
@@ -138,9 +145,9 @@ public final class Messages {
                 or <secondary>false</secondary> to keep it local.
                 """);
     public static final Message MAP_SET_MATCHUPS = info("editor-map-set-matchups", """
-                Enter a comma-separated list of elements this map is targeted to, or leave blank for none.
+                Enter comma-separated element matchups in the form <secondary>FIREvEARTH</secondary>, or leave blank for none.
 
-                Valid options: <secondary>AIR, WATER, EARTH, FIRE, CHI</secondary>.
+                Valid elements: <secondary>AIR, WATER, EARTH, FIRE, CHI</secondary>.
                 """);
     public static final Message MAP_MANAGE_DOMINATION_AREAS = info("editor-map-manage-domination-areas", """
                 Configure domination capture areas for this map.
@@ -205,6 +212,10 @@ public final class Messages {
 
     static void init() {
         // no-op
+    }
+
+    public static Component deserializeMiniMessage(String message) {
+        return MINI_MESSAGE.deserialize(message, RESOLVER);
     }
 
     public static Message wrap(String defaultText) {

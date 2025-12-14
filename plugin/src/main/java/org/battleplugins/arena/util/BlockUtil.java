@@ -58,9 +58,6 @@ public final class BlockUtil {
         );
         final BlockVector3 pasteAt = dstRegion.getMinimumPoint();
 
-        PasteGuard guard = new PasteGuard(plugin, newWorld, dstRegion, 1);
-        guard.enable();
-
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             try (EditSession session = WorldEdit.getInstance()
                     .newEditSessionBuilder()
@@ -80,8 +77,7 @@ public final class BlockUtil {
                 );
                 fec.setCopyingEntities(false);
                 fec.setRemovingEntities(false);
-                fec.setCopyingBiomes(false);
-                fec.setSourceMask(new ExistingBlockMask(sourceExtent)); // skip reading air
+                fec.setCopyingBiomes(true);
 
                 Operations.complete(fec);
 
@@ -91,7 +87,6 @@ public final class BlockUtil {
                 BattleArena.getInstance().error("Async FAWE copy failed", t);
             } finally {
                 Bukkit.getScheduler().runTask(plugin, () -> {
-                    guard.disable();
                     if (onComplete != null) {
                         onComplete.run();
                     }
@@ -131,11 +126,6 @@ public final class BlockUtil {
     public static boolean pasteSchematic(String map, String arena, World world, Bounds bounds, Runnable onComplete) {
         final Plugin plugin = BattleArena.getInstance();
 
-        final CuboidRegion region = new CuboidRegion(
-                BlockVector3.at(bounds.getMinX(), bounds.getMinY(), bounds.getMinZ()),
-                BlockVector3.at(bounds.getMaxX(), bounds.getMaxY(), bounds.getMaxZ())
-        );
-
         Path path = plugin.getDataFolder().toPath()
                 .resolve("schematics")
                 .resolve(arena.toLowerCase(Locale.ROOT))
@@ -157,9 +147,6 @@ public final class BlockUtil {
 
         final Path schematicPath = path; // effectively final
 
-        final PasteGuard guard = new PasteGuard(plugin, world, region, 1);
-        guard.enable();
-
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             Clipboard clipboard;
             try (ClipboardReader reader = ClipboardFormats.findByFile(schematicPath.toFile())
@@ -167,7 +154,6 @@ public final class BlockUtil {
                 clipboard = reader.read();
             } catch (IOException ex) {
                 plugin.getLogger().severe("Failed to read schematic: " + ex.getMessage());
-                Bukkit.getScheduler().runTask(plugin, guard::disable);
                 return;
             }
 
@@ -191,7 +177,6 @@ public final class BlockUtil {
                 BattleArena.getInstance().error("Async FAWE paste failed", t);
             } finally {
                 Bukkit.getScheduler().runTask(plugin, () -> {
-                    guard.disable();
                     if (onComplete != null) {
                         onComplete.run();
                     }

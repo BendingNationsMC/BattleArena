@@ -33,6 +33,9 @@ public class BattleArenaConfig {
     @ArenaOption(name = "use-schematic", description = "Whether creating a dynamic arena should try to use a schematic if one is available first.", required = true)
     private boolean schematicUsage;
 
+    @ArenaOption(name = "cache-dynamic-arenas", description = "Whether dynamic arenas should be cached and restored between matches.", required = true)
+    private boolean cacheDynamicArenas;
+
     @ArenaOption(name = "disabled-modules", description = "Modules that are disabled by default.")
     private List<String> disabledModules;
 
@@ -103,6 +106,10 @@ public class BattleArenaConfig {
 
     public boolean isSchematicUsage() {
         return this.schematicUsage;
+    }
+
+    public boolean isCacheDynamicArenas() {
+        return this.cacheDynamicArenas;
     }
 
     public boolean isProxyHost() {

@@ -1,24 +1,35 @@
 package org.battleplugins.arena;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 import org.battleplugins.arena.command.BACommandExecutor;
 import org.battleplugins.arena.command.BaseCommandExecutor;
+import org.battleplugins.arena.command.DuelCommandExecutor;
+import org.battleplugins.arena.command.SpectateCommandExecutor;
 import org.battleplugins.arena.competition.*;
 import org.battleplugins.arena.competition.event.EventOptions;
 import org.battleplugins.arena.competition.event.EventScheduler;
 import org.battleplugins.arena.competition.event.EventType;
+import org.battleplugins.arena.competition.map.DynamicArenaCache;
+import org.battleplugins.arena.competition.map.InstanceAllocator;
 import org.battleplugins.arena.competition.map.LiveCompetitionMap;
 import org.battleplugins.arena.competition.map.MapType;
 import org.battleplugins.arena.config.ArenaConfigParser;
 import org.battleplugins.arena.config.ParseException;
+import org.battleplugins.arena.duel.DuelMenuService;
+import org.battleplugins.arena.duel.DuelSelectionRegistry;
 import org.battleplugins.arena.event.BattleArenaPreInitializeEvent;
 import org.battleplugins.arena.event.BattleArenaReloadEvent;
 import org.battleplugins.arena.event.BattleArenaReloadedEvent;
 import org.battleplugins.arena.event.BattleArenaShutdownEvent;
 import org.battleplugins.arena.messages.MessageLoader;
+import org.battleplugins.arena.messages.Messages;
 import org.battleplugins.arena.module.ArenaModuleContainer;
 import org.battleplugins.arena.module.ArenaModuleLoader;
 import org.battleplugins.arena.module.ModuleLoadException;
 import org.battleplugins.arena.proxy.Connector;
+import org.battleplugins.arena.proxy.ProxySpectateHandler;
+import org.battleplugins.arena.proxy.SerializedPlayer;
 import org.battleplugins.arena.team.ArenaTeams;
 import org.battleplugins.arena.util.*;
 import org.bstats.bukkit.Metrics;
@@ -45,6 +56,7 @@ import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
@@ -64,10 +76,13 @@ public class BattleArena extends JavaPlugin implements LoggerHolder, BattleArena
 
     private final CompetitionManager competitionManager = new CompetitionManager(this);
     private final EventScheduler eventScheduler = new EventScheduler();
+    private final DynamicArenaCache dynamicArenaCache = new DynamicArenaCache(this);
 
     private BattleArenaConfig config;
     private ArenaModuleLoader moduleLoader;
     private ArenaTeams teams;
+    private DuelMenuService duelMenuService;
+    private final DuelSelectionRegistry duelSelections = new DuelSelectionRegistry();
 
     private Path arenasPath;
 
@@ -76,13 +91,16 @@ public class BattleArena extends JavaPlugin implements LoggerHolder, BattleArena
     private boolean debugMode = true;
 
     private static World INSTANCES_WORLD;
-    public static final int SLOT_SPACING = 2048; // 128 chunks apart
+    public static final int SLOT_SPACING = 2048; // minimum spacing between dynamic arenas
     private static final SlotPool MAP_POOL = new SlotPool();
+    private static final InstanceAllocator INSTANCE_ALLOCATOR = new InstanceAllocator();
     private Connector connector;
     private boolean initialized;
     private final Set<java.util.UUID> pendingProxyJoins = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    private final Set<java.util.UUID> pendingProxySpectates = java.util.concurrent.ConcurrentHashMap.newKeySet();
     // Optional ranked API provided by the ranked module.
     private org.battleplugins.arena.ranked.RankedApi rankedApi;
+    private ProxySpectateHandler proxySpectateHandler;
 
 
     @Override
@@ -122,6 +140,7 @@ public class BattleArena extends JavaPlugin implements LoggerHolder, BattleArena
         // Register default arenas
         this.registerArena(this, "Arena", Arena.class);
 
+        this.deleteInstancesWorldFolder();
         INSTANCES_WORLD = Bukkit.createWorld(
                 new WorldCreator("ba-instances")
                         .generator(VoidChunkGenerator.INSTANCE)
@@ -136,6 +155,7 @@ public class BattleArena extends JavaPlugin implements LoggerHolder, BattleArena
         INSTANCES_WORLD.setGameRule(GameRule.DO_WEATHER_CYCLE, false);
         INSTANCES_WORLD.setGameRule(GameRule.DO_IMMEDIATE_RESPAWN, true);
         INSTANCES_WORLD.setGameRule(GameRule.RANDOM_TICK_SPEED, 0);
+        INSTANCES_WORLD.setGameRule(GameRule.DO_MOB_SPAWNING, false);
 
         // Enable the plugin
         this.enable();
@@ -143,6 +163,10 @@ public class BattleArena extends JavaPlugin implements LoggerHolder, BattleArena
         if (config.isProxyHost() && config.isProxySupport()) {
             // Handle generic arena join requests on the proxy host.
             Bukkit.getPluginManager().registerEvents(new org.battleplugins.arena.proxy.ProxyArenaJoinHandler(this), this);
+
+            // Handle proxy spectate routing on the host.
+            this.proxySpectateHandler = new ProxySpectateHandler(this);
+            Bukkit.getPluginManager().registerEvents(this.proxySpectateHandler, this);
         }
 
         // Enable modules
@@ -164,6 +188,22 @@ public class BattleArena extends JavaPlugin implements LoggerHolder, BattleArena
         statsCommand.setTabCompleter(statsBridge);
         CommandInjector.registerPermissions("stats", statsExecutor);
 
+        // Global spectate command for proxy-compatible spectating by player
+        SpectateCommandExecutor spectateExecutor = new SpectateCommandExecutor(this);
+        PluginCommand spectateCommand = CommandInjector.inject("spectate", "spectate");
+        TabExecutor spectateBridge = spectateExecutor.standaloneExecutor();
+        spectateCommand.setExecutor(spectateBridge);
+        spectateCommand.setTabCompleter(spectateBridge);
+        CommandInjector.registerPermissions("spectate", spectateExecutor);
+
+        // Global duel selector command
+        DuelCommandExecutor duelExecutor = new DuelCommandExecutor(this.duelMenuService);
+        PluginCommand duelCommand = CommandInjector.inject("duel", "duel");
+        TabExecutor duelBridge = duelExecutor.standaloneExecutor();
+        duelCommand.setExecutor(duelBridge);
+        duelCommand.setTabCompleter(duelBridge);
+        CommandInjector.registerPermissions("duel", duelExecutor);
+
         // Loads all arena loaders
         this.loadArenaLoaders(this.arenasPath);
 
@@ -179,6 +219,8 @@ public class BattleArena extends JavaPlugin implements LoggerHolder, BattleArena
     }
 
     private void enable() {
+        this.dynamicArenaCache.resume();
+
         if (config.isProxySupport()) {
             connector = new Connector(this);
             connector.connect();
@@ -198,6 +240,16 @@ public class BattleArena extends JavaPlugin implements LoggerHolder, BattleArena
         if (Files.notExists(dataFolder.resolve("teams.yml"))) {
             this.saveResource("teams.yml", false);
         }
+
+        if (Files.notExists(dataFolder.resolve("duel-menu.yml"))) {
+            this.saveResource("duel-menu.yml", false);
+        }
+
+        if (this.duelMenuService == null) {
+            this.duelMenuService = new DuelMenuService(this);
+        }
+        Bukkit.getPluginManager().registerEvents(this.duelMenuService, this);
+        this.duelMenuService.reload();
 
         // Load teams
         File teamsFile = new File(this.getDataFolder(), "teams.yml");
@@ -224,14 +276,19 @@ public class BattleArena extends JavaPlugin implements LoggerHolder, BattleArena
     }
 
     private void disable() {
+        this.dynamicArenaCache.suspend();
+
         // Close all active competitions
         this.competitionManager.completeAllActiveCompetitions();
+        this.dynamicArenaCache.shutdown();
 
         // Stop all scheduled events
         this.eventScheduler.stopAllEvents();
 
         // Clear dynamic maps
         this.clearDynamicMaps();
+        this.unloadInstancesWorld();
+        this.deleteInstancesWorldFolder();
 
         for (Arena arena : this.arenas.values()) {
             arena.getEventManager().unregisterAll();
@@ -241,6 +298,11 @@ public class BattleArena extends JavaPlugin implements LoggerHolder, BattleArena
         this.arenaMaps.clear();
         this.arenaLoaders.clear();
         this.pendingProxyJoins.clear();
+        this.pendingProxySpectates.clear();
+
+        if (this.duelMenuService != null) {
+            this.duelMenuService.shutdown();
+        }
 
         if (this.connector != null) {
             try {
@@ -255,6 +317,7 @@ public class BattleArena extends JavaPlugin implements LoggerHolder, BattleArena
         this.initialized = false;
 
         this.rankedApi = null;
+        this.proxySpectateHandler = null;
     }
 
     void postInitialize() {
@@ -620,6 +683,11 @@ public class BattleArena extends JavaPlugin implements LoggerHolder, BattleArena
         return this.connector;
     }
 
+    @Nullable
+    public ProxySpectateHandler getProxySpectateHandler() {
+        return this.proxySpectateHandler;
+    }
+
     /**
      * Returns whether the plugin has completed its post-initialization phase.
      *
@@ -898,6 +966,28 @@ public class BattleArena extends JavaPlugin implements LoggerHolder, BattleArena
         }
     }
 
+    private void unloadInstancesWorld() {
+        if (INSTANCES_WORLD != null) {
+            Bukkit.unloadWorld(INSTANCES_WORLD, false);
+            INSTANCES_WORLD = null;
+        }
+    }
+
+    private void deleteInstancesWorldFolder() {
+        File worldFolder = new File(Bukkit.getWorldContainer(), "ba-instances");
+        if (!worldFolder.exists()) {
+            return;
+        }
+
+        try (Stream<Path> paths = Files.walk(worldFolder.toPath())) {
+            for (Path path : paths.sorted(Comparator.reverseOrder()).toList()) {
+                Files.deleteIfExists(path);
+            }
+        } catch (IOException e) {
+            this.error("Failed to delete ba-instances world folder", e);
+        }
+    }
+
     public void loadConfig(boolean reload) {
         this.saveDefaultConfig();
 
@@ -913,14 +1003,26 @@ public class BattleArena extends JavaPlugin implements LoggerHolder, BattleArena
                 this.getServer().getPluginManager().disablePlugin(this);
             }
         }
+
+        if (this.config != null && !this.config.isCacheDynamicArenas()) {
+            this.dynamicArenaCache.flush();
+        }
     }
 
     public Map<Arena, List<LiveCompetitionMap>> getArenaMaps() {
         return arenaMaps;
     }
 
+    public DynamicArenaCache getDynamicArenaCache() {
+        return this.dynamicArenaCache;
+    }
+
     public static SlotPool getMapPool() {
         return MAP_POOL;
+    }
+
+    public static InstanceAllocator getInstanceAllocator() {
+        return INSTANCE_ALLOCATOR;
     }
 
     public boolean isPendingProxyJoin(java.util.UUID id) {
@@ -937,6 +1039,18 @@ public class BattleArena extends JavaPlugin implements LoggerHolder, BattleArena
         }
     }
 
+    public boolean isPendingProxySpectate(java.util.UUID id) {
+        return this.pendingProxySpectates.contains(id);
+    }
+
+    public void addPendingProxySpectate(java.util.UUID id) {
+        this.pendingProxySpectates.add(id);
+    }
+
+    public void removePendingProxySpectate(java.util.UUID id) {
+        this.pendingProxySpectates.remove(id);
+    }
+
     public org.battleplugins.arena.ranked.RankedApi getRankedApi() {
         return this.rankedApi;
     }
@@ -947,6 +1061,91 @@ public class BattleArena extends JavaPlugin implements LoggerHolder, BattleArena
 
     public void removePendingProxyJoin(java.util.UUID id) {
         this.pendingProxyJoins.remove(id);
+    }
+
+    public boolean requestProxyArenaSpectate(Player spectator, Arena arena, String mapName) {
+        if (arena == null || mapName == null || mapName.isEmpty()) {
+            Messages.NO_ARENA_WITH_NAME.send(spectator);
+            return true;
+        }
+
+        return this.sendProxySpectateRequest(spectator, payload -> {
+            payload.addProperty("mode", "arena");
+            if (arena != null) {
+                payload.addProperty("arena", arena.getName());
+            }
+            if (mapName != null && !mapName.isEmpty()) {
+                payload.addProperty("map", mapName);
+            }
+        });
+    }
+
+    public boolean requestProxyPlayerSpectate(Player spectator, @Nullable java.util.UUID targetId, @Nullable String targetName) {
+        return this.sendProxySpectateRequest(spectator, payload -> {
+            payload.addProperty("mode", "player");
+            if (targetId != null) {
+                payload.addProperty("target", targetId.toString());
+            }
+            if (targetName != null && !targetName.isEmpty()) {
+                payload.addProperty("targetName", targetName);
+            }
+        });
+    }
+
+    private boolean sendProxySpectateRequest(Player spectator, Consumer<JsonObject> payloadCustomizer) {
+        if (!this.getMainConfig().isProxySupport() || this.getMainConfig().isProxyHost()) {
+            return false;
+        }
+
+        if (this.connector == null) {
+            Messages.PROXY_SPECTATE_UNAVAILABLE.send(spectator);
+            return true;
+        }
+
+        if (this.isPendingProxySpectate(spectator.getUniqueId())) {
+            Messages.PROXY_SPECTATE_PENDING.send(spectator);
+            return true;
+        }
+
+        SerializedPlayer serialized = SerializedPlayer.toSerializedPlayer(spectator);
+        JsonObject payload = new JsonObject();
+        payload.addProperty("type", "spectate_request");
+
+        String origin = this.getMainConfig().getProxyServerName();
+        if (origin != null && !origin.isEmpty()) {
+            payload.addProperty("origin", origin);
+        }
+
+        JsonObject spectatorObject = new JsonObject();
+        spectatorObject.addProperty("uuid", serialized.getUuid());
+
+        if (!serialized.getElements().isEmpty()) {
+            JsonArray elementsArray = new JsonArray();
+            serialized.getElements().forEach(element -> elementsArray.add(element.name()));
+            spectatorObject.add("elements", elementsArray);
+        }
+
+        if (!serialized.getAbilities().isEmpty()) {
+            JsonObject abilitiesObject = new JsonObject();
+            serialized.getAbilities().forEach((slot, ability) -> abilitiesObject.addProperty(String.valueOf(slot), ability));
+            spectatorObject.add("abilities", abilitiesObject);
+        }
+
+        if (serialized.getOrigin() != null && !serialized.getOrigin().isEmpty()) {
+            spectatorObject.addProperty("origin", serialized.getOrigin());
+        }
+
+        payload.add("spectator", spectatorObject);
+        payloadCustomizer.accept(payload);
+
+        this.addPendingProxySpectate(spectator.getUniqueId());
+        this.connector.sendToRouter(payload.toString());
+        Messages.PROXY_SPECTATE_PREPARING.send(spectator);
+        return true;
+    }
+
+    public DuelSelectionRegistry getDuelSelectionRegistry() {
+        return this.duelSelections;
     }
 
     /**

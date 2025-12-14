@@ -9,6 +9,7 @@ import org.battleplugins.arena.competition.Competition;
 import org.battleplugins.arena.competition.LiveCompetition;
 import org.battleplugins.arena.competition.phase.CompetitionPhaseType;
 import org.battleplugins.arena.messages.Messages;
+import org.battleplugins.arena.queue.QueueService;
 import org.battleplugins.arena.resolver.Resolver;
 import org.battleplugins.arena.resolver.ResolverKey;
 import org.battleplugins.arena.resolver.ResolverKeys;
@@ -18,18 +19,24 @@ import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.time.Duration;
 import java.util.List;
+import java.util.Locale;
+import java.util.Optional;
 
 public class BattleArenaExpansion extends PlaceholderExpansion {
     private final BattleArena plugin;
+    private final String identifier;
+    private QueueService queueService;
 
-    public BattleArenaExpansion(BattleArena plugin) {
+    public BattleArenaExpansion(BattleArena plugin, String identifier) {
         this.plugin = plugin;
+        this.identifier = identifier;
     }
 
     @Override
     public @NotNull String getIdentifier() {
-        return "ba";
+        return this.identifier;
     }
 
     @Override
@@ -44,6 +51,11 @@ public class BattleArenaExpansion extends PlaceholderExpansion {
 
     @Override
     public @Nullable String onPlaceholderRequest(Player player, @NotNull String params) {
+        String queueValue = this.handleQueuePlaceholders(player, params);
+        if (queueValue != null) {
+            return queueValue;
+        }
+
         String[] split = params.split("_");
 
         // No data for us to parse
@@ -182,5 +194,51 @@ public class BattleArenaExpansion extends PlaceholderExpansion {
         }
 
         return null;
+    }
+
+    private @Nullable String handleQueuePlaceholders(@Nullable Player player, String params) {
+        String lowered = params.toLowerCase(Locale.ROOT);
+        if (!lowered.startsWith("queue_")) {
+            return null;
+        }
+
+        if (player == null) {
+            return "";
+        }
+
+        QueueService service = this.getQueueService();
+        if (service == null) {
+            return "";
+        }
+
+        Optional<Duration> queued = service.getQueueDuration(player.getUniqueId());
+        if (queued.isEmpty()) {
+            return "";
+        }
+
+        Duration duration = queued.get();
+        if (lowered.equals("queue_duration_short")) {
+            return Util.toTimeStringShort(duration);
+        }
+
+        if (lowered.equals("queue_duration")) {
+            return Util.toTimeString(duration);
+        }
+
+        return "";
+    }
+
+    private @Nullable QueueService getQueueService() {
+        if (this.queueService != null) {
+            return this.queueService;
+        }
+
+        return this.plugin.<QueueService>module(QueueService.MODULE_ID)
+                .map(container -> {
+                    QueueService service = container.initializer(QueueService.class);
+                    this.queueService = service;
+                    return service;
+                })
+                .orElse(null);
     }
 }

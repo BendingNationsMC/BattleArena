@@ -2,6 +2,7 @@ package org.battleplugins.arena.editor.context;
 
 import io.papermc.paper.math.Position;
 import org.battleplugins.arena.Arena;
+import org.battleplugins.arena.competition.map.ElementMatchup;
 import org.battleplugins.arena.competition.map.LiveCompetitionMap;
 import org.battleplugins.arena.competition.map.MapType;
 import org.battleplugins.arena.competition.map.options.Bounds;
@@ -11,7 +12,6 @@ import org.battleplugins.arena.editor.ArenaEditorWizard;
 import org.battleplugins.arena.editor.EditorContext;
 import org.battleplugins.arena.module.domination.config.DominationAreaDefinition;
 import org.battleplugins.arena.module.domination.config.DominationMapSettings;
-import org.battleplugins.arena.proxy.Elements;
 import org.battleplugins.arena.team.ArenaTeam;
 import org.battleplugins.arena.util.IntRange;
 import org.battleplugins.arena.util.PositionWithRotation;
@@ -30,7 +30,7 @@ public class MapCreateContext extends EditorContext<MapCreateContext> {
     private Position min;
     private Position max;
     private boolean remote;
-    private List<Elements> matchups = new ArrayList<>();
+    private List<ElementMatchup> matchups = new ArrayList<>();
 
     private PositionWithRotation waitroomSpawn;
     private PositionWithRotation spectatorSpawn;
@@ -82,11 +82,11 @@ public class MapCreateContext extends EditorContext<MapCreateContext> {
         this.remote = remote;
     }
 
-    public List<Elements> getMatchups() {
+    public List<ElementMatchup> getMatchups() {
         return this.matchups;
     }
 
-    public void setMatchups(List<Elements> matchups) {
+    public void setMatchups(List<ElementMatchup> matchups) {
         this.matchups = matchups == null ? new ArrayList<>() : new ArrayList<>(matchups);
     }
 
