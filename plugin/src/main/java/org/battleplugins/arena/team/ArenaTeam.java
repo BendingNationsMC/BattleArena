@@ -7,7 +7,7 @@ import org.battleplugins.arena.config.DocumentationSource;
 import org.battleplugins.arena.util.Describable;
 import org.bukkit.inventory.ItemStack;
 
-import java.awt.Color;
+import java.awt.*;
 
 /**
  * Represents a team in an arena.

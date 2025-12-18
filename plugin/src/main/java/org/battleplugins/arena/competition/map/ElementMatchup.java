@@ -2,14 +2,7 @@ package org.battleplugins.arena.competition.map;
 
 import org.battleplugins.arena.proxy.Elements;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.EnumMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 
 /**
  * Represents a pairing of elements for a map. Matchups can either be legacy

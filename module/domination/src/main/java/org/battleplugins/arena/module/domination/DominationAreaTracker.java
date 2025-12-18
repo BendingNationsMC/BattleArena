@@ -10,26 +10,14 @@ import org.battleplugins.arena.feature.hologram.Holograms;
 import org.battleplugins.arena.module.domination.config.DominationAreaDefinition;
 import org.battleplugins.arena.module.domination.config.RewardType;
 import org.battleplugins.arena.team.ArenaTeam;
-import org.bukkit.Bukkit;
-import org.bukkit.GameMode;
-import org.bukkit.Location;
-import org.bukkit.Particle;
-import org.bukkit.World;
+import org.bukkit.*;
 import org.bukkit.boss.BarColor;
 import org.bukkit.boss.BarStyle;
 import org.bukkit.boss.BossBar;
 import org.bukkit.entity.Player;
 
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 
 /**
  * Runtime tracker for a domination area.

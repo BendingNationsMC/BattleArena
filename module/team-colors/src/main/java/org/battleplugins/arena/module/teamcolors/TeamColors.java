@@ -1,47 +1,24 @@
 package org.battleplugins.arena.module.teamcolors;
 
-import com.github.retrooper.packetevents.PacketEvents;
-import com.github.retrooper.packetevents.event.PacketListenerAbstract;
-import com.github.retrooper.packetevents.event.PacketListenerPriority;
-import com.github.retrooper.packetevents.event.PacketSendEvent;
-import com.github.retrooper.packetevents.protocol.chat.ChatCompletionAction;
-import com.github.retrooper.packetevents.protocol.entity.data.EntityData;
-import com.github.retrooper.packetevents.protocol.entity.data.EntityDataTypes;
-import com.github.retrooper.packetevents.protocol.packettype.PacketType;
-import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityMetadata;
 import com.projectkorra.projectkorra.BendingPlayer;
 import com.projectkorra.projectkorra.Element;
 import fr.skytasul.glowingentities.GlowingEntities;
-import io.github.retrooper.packetevents.util.SpigotReflectionUtil;
-import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.battleplugins.arena.ArenaPlayer;
 import org.battleplugins.arena.BattleArena;
 import org.battleplugins.arena.competition.LiveCompetition;
 import org.battleplugins.arena.event.BattleArenaPostInitializeEvent;
-import org.battleplugins.arena.event.arena.ArenaPhaseStartEvent;
-import org.battleplugins.arena.event.player.ArenaJoinEvent;
 import org.battleplugins.arena.event.player.ArenaLeaveEvent;
 import org.battleplugins.arena.event.player.ArenaTeamJoinEvent;
-import org.battleplugins.arena.event.player.ArenaTeamLeaveEvent;
 import org.battleplugins.arena.module.ArenaModule;
 import org.battleplugins.arena.module.ArenaModuleInitializer;
 import org.battleplugins.arena.options.ArenaOptionType;
 import org.battleplugins.arena.options.types.BooleanArenaOption;
 import org.battleplugins.arena.team.ArenaTeam;
-import org.battleplugins.arena.team.ArenaTeams;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
-import org.bukkit.potion.PotionEffect;
-import org.bukkit.potion.PotionEffectType;
-import org.bukkit.scoreboard.Scoreboard;
-import org.bukkit.scoreboard.ScoreboardManager;
-import org.bukkit.scoreboard.Team;
-
-import static net.kyori.adventure.text.format.NamedTextColor.BLUE;
-import static net.kyori.adventure.text.format.NamedTextColor.RED;
 
 /**
  * A module that adds team colors to a player's name.

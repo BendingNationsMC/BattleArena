@@ -3,11 +3,7 @@ package org.battleplugins.arena.module.ranked;
 import org.battleplugins.arena.BattleArena;
 import org.battleplugins.arena.proxy.Elements;
 import org.slf4j.Logger;
-import redis.clients.jedis.Jedis;
-import redis.clients.jedis.JedisPool;
-import redis.clients.jedis.JedisPoolConfig;
-import redis.clients.jedis.Pipeline;
-import redis.clients.jedis.Response;
+import redis.clients.jedis.*;
 
 import java.util.EnumMap;
 import java.util.List;

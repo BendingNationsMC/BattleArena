@@ -1,7 +1,6 @@
 package org.battleplugins.arena.module.domination;
 
 import org.battleplugins.arena.Arena;
-import org.battleplugins.arena.ArenaPlayer;
 import org.battleplugins.arena.BattleArena;
 import org.battleplugins.arena.competition.LiveCompetition;
 import org.battleplugins.arena.module.domination.config.DominationAreaDefinition;
@@ -11,7 +10,8 @@ import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.scheduler.BukkitTask;
 
-import java.util.*;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 /**
  * Manages the runtime capture loop for a single competition instance.

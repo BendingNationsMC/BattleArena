@@ -2,15 +2,10 @@ package org.battleplugins.arena.proxy;
 
 import com.projectkorra.projectkorra.BendingPlayer;
 import com.projectkorra.projectkorra.Element;
-import com.projectkorra.projectkorra.ProjectKorra;
-import com.projectkorra.projectkorra.board.BendingBoard;
 import com.projectkorra.projectkorra.board.BendingBoardManager;
-import com.projectkorra.projectkorra.event.PlayerChangeSubElementEvent;
-import com.projectkorra.projectkorra.object.EarthCosmetic;
 import org.battleplugins.arena.BattleArena;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
-
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;

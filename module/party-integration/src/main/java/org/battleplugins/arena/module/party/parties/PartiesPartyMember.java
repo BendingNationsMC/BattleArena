@@ -1,6 +1,5 @@
 package org.battleplugins.arena.module.party.parties;
 
-import com.alessiodp.parties.api.Parties;
 import com.alessiodp.parties.api.interfaces.PartyPlayer;
 import org.battleplugins.arena.feature.party.Party;
 import org.battleplugins.arena.feature.party.PartyMember;

@@ -2,8 +2,8 @@ package org.battleplugins.arena.event.action.types;
 
 import org.battleplugins.arena.ArenaPlayer;
 import org.battleplugins.arena.competition.Competition;
-import org.battleplugins.arena.competition.map.options.TeamSpawns;
 import org.battleplugins.arena.competition.LiveCompetition;
+import org.battleplugins.arena.competition.map.options.TeamSpawns;
 import org.battleplugins.arena.event.action.EventAction;
 import org.battleplugins.arena.resolver.Resolvable;
 import org.battleplugins.arena.team.ArenaTeam;

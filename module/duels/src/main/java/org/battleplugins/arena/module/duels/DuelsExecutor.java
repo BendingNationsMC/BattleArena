@@ -1,16 +1,16 @@
 package org.battleplugins.arena.module.duels;
 
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.text.event.HoverEvent;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 import org.battleplugins.arena.Arena;
 import org.battleplugins.arena.BattleArena;
 import org.battleplugins.arena.command.ArenaCommand;
 import org.battleplugins.arena.command.SubCommandExecutor;
 import org.battleplugins.arena.competition.map.LiveCompetitionMap;
 import org.battleplugins.arena.competition.map.MapType;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.event.ClickEvent;
-import net.kyori.adventure.text.event.HoverEvent;
-import net.kyori.adventure.text.format.NamedTextColor;
-import net.kyori.adventure.text.format.TextDecoration;
 import org.battleplugins.arena.duel.DuelSelectionRegistry;
 import org.battleplugins.arena.feature.party.Parties;
 import org.battleplugins.arena.feature.party.Party;
@@ -20,7 +20,6 @@ import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
 import java.util.Locale;
-import java.util.UUID;
 
 public class DuelsExecutor implements SubCommandExecutor {
     private final Duels module;

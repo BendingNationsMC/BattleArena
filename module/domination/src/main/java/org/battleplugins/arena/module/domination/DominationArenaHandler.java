@@ -1,7 +1,6 @@
 package org.battleplugins.arena.module.domination;
 
 import com.projectkorra.projectkorra.BendingPlayer;
-import com.projectkorra.projectkorra.object.Style;
 import org.battleplugins.arena.Arena;
 import org.battleplugins.arena.competition.Competition;
 import org.battleplugins.arena.competition.LiveCompetition;

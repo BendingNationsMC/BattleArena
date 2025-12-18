@@ -1,28 +1,7 @@
 package org.battleplugins.arena.event.action;
 
 import org.battleplugins.arena.config.DocumentationSource;
-import org.battleplugins.arena.event.action.types.BroadcastAction;
-import org.battleplugins.arena.event.action.types.ChangeGamemodeAction;
-import org.battleplugins.arena.event.action.types.ChangeRoleAction;
-import org.battleplugins.arena.event.action.types.ClearEffectsAction;
-import org.battleplugins.arena.event.action.types.ClearInventoryAction;
-import org.battleplugins.arena.event.action.types.DelayAction;
-import org.battleplugins.arena.event.action.types.FlightAction;
-import org.battleplugins.arena.event.action.types.GiveEffectsAction;
-import org.battleplugins.arena.event.action.types.GiveItemAction;
-import org.battleplugins.arena.event.action.types.HealthAction;
-import org.battleplugins.arena.event.action.types.JoinRandomTeamAction;
-import org.battleplugins.arena.event.action.types.KillEntitiesAction;
-import org.battleplugins.arena.event.action.types.LeaveAction;
-import org.battleplugins.arena.event.action.types.PlaySoundAction;
-import org.battleplugins.arena.event.action.types.ResetStateAction;
-import org.battleplugins.arena.event.action.types.RespawnAction;
-import org.battleplugins.arena.event.action.types.RestoreAction;
-import org.battleplugins.arena.event.action.types.RunCommandAction;
-import org.battleplugins.arena.event.action.types.SendMessageAction;
-import org.battleplugins.arena.event.action.types.StoreAction;
-import org.battleplugins.arena.event.action.types.TeardownAction;
-import org.battleplugins.arena.event.action.types.TeleportAction;
+import org.battleplugins.arena.event.action.types.*;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.HashMap;

@@ -6,7 +6,6 @@ import org.battleplugins.arena.config.SingularValueParser;
 import org.battleplugins.arena.event.ArenaEventType;
 import org.battleplugins.arena.event.action.EventAction;
 import org.battleplugins.arena.event.action.EventActionType;
-import org.battleplugins.arena.options.ArenaOptionType;
 import org.bukkit.configuration.ConfigurationSection;
 import org.jetbrains.annotations.Nullable;
 

@@ -5,7 +5,6 @@ import org.battleplugins.arena.ArenaPlayer;
 import org.battleplugins.arena.BattleArena;
 import org.battleplugins.arena.competition.map.LiveCompetitionMap;
 import org.battleplugins.arena.competition.map.MapType;
-import org.battleplugins.arena.competition.map.options.Bounds;
 import org.battleplugins.arena.competition.phase.CompetitionPhaseType;
 import org.battleplugins.arena.competition.phase.phases.VictoryPhase;
 import org.battleplugins.arena.event.arena.ArenaCreateCompetitionEvent;
@@ -16,12 +15,8 @@ import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.Nullable;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.stream.Stream;
 
 public class CompetitionManager {
     private final Map<Arena, List<Competition<?>>> competitions = new HashMap<>();

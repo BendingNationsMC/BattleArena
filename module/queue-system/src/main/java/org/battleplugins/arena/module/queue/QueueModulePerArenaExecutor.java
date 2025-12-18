@@ -3,7 +3,6 @@ package org.battleplugins.arena.module.queue;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import org.battleplugins.arena.Arena;
-import org.battleplugins.arena.ArenaPlayer;
 import org.battleplugins.arena.BattleArena;
 import org.battleplugins.arena.command.ArenaCommand;
 import org.battleplugins.arena.command.SubCommandExecutor;

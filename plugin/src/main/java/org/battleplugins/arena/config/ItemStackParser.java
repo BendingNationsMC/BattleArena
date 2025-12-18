@@ -18,11 +18,7 @@ import org.bukkit.inventory.meta.PotionMeta;
 import org.bukkit.potion.PotionEffect;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Locale;
-import java.util.Set;
+import java.util.*;
 import java.util.function.BiConsumer;
 
 @DocumentationSource("https://docs.battleplugins.org/books/user-guide/page/item-syntax")

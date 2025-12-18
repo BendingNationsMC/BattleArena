@@ -1,20 +1,8 @@
 package org.battleplugins.arena.event;
 
 import org.battleplugins.arena.config.DocumentationSource;
-import org.battleplugins.arena.event.arena.ArenaDrawEvent;
-import org.battleplugins.arena.event.arena.ArenaLoseEvent;
-import org.battleplugins.arena.event.arena.ArenaPhaseCompleteEvent;
-import org.battleplugins.arena.event.arena.ArenaPhaseStartEvent;
-import org.battleplugins.arena.event.arena.ArenaVictoryEvent;
-import org.battleplugins.arena.event.player.ArenaDeathEvent;
-import org.battleplugins.arena.event.player.ArenaJoinEvent;
-import org.battleplugins.arena.event.player.ArenaKillEvent;
-import org.battleplugins.arena.event.player.ArenaLeaveEvent;
-import org.battleplugins.arena.event.player.ArenaLifeDepleteEvent;
-import org.battleplugins.arena.event.player.ArenaLivesExhaustEvent;
-import org.battleplugins.arena.event.player.ArenaRespawnEvent;
-import org.battleplugins.arena.event.player.ArenaSpectateEvent;
-import org.battleplugins.arena.event.player.ArenaStatChangeEvent;
+import org.battleplugins.arena.event.arena.*;
+import org.battleplugins.arena.event.player.*;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.HashMap;

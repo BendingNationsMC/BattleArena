@@ -4,17 +4,15 @@ import org.battleplugins.arena.Arena;
 import org.battleplugins.arena.competition.Competition;
 import org.battleplugins.arena.event.ArenaEvent;
 import org.battleplugins.arena.event.EventTrigger;
+import org.battleplugins.arena.module.domination.config.DominationAreaDefinition;
 import org.battleplugins.arena.resolver.Resolver;
 import org.battleplugins.arena.resolver.ResolverKeys;
 import org.battleplugins.arena.resolver.ResolverProvider;
-import org.battleplugins.arena.module.domination.config.DominationAreaDefinition;
 import org.battleplugins.arena.team.ArenaTeam;
 import org.bukkit.event.Event;
 import org.bukkit.event.HandlerList;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-
-import java.util.Random;
 
 /**
  * Event fired whenever a domination area is captured by a team.

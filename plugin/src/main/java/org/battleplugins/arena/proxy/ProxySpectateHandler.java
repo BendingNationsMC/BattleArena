@@ -2,8 +2,8 @@ package org.battleplugins.arena.proxy;
 
 import com.google.gson.JsonObject;
 import org.battleplugins.arena.Arena;
-import org.battleplugins.arena.ArenaPlayer;
 import org.battleplugins.arena.ArenaLike;
+import org.battleplugins.arena.ArenaPlayer;
 import org.battleplugins.arena.BattleArena;
 import org.battleplugins.arena.competition.Competition;
 import org.battleplugins.arena.competition.PlayerRole;

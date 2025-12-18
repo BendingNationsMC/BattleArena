@@ -13,7 +13,7 @@ import org.battleplugins.arena.stat.StatHolder;
 import org.battleplugins.arena.team.ArenaTeam;
 import org.battleplugins.arena.util.Version;
 
-import java.awt.Color;
+import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;

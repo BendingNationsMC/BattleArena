@@ -39,12 +39,7 @@ import org.bukkit.configuration.file.YamlConfiguration;
 
 import java.io.InputStreamReader;
 import java.text.MessageFormat;
-import java.util.ArrayDeque;
-import java.util.Collections;
-import java.util.Deque;
-import java.util.List;
-import java.util.Locale;
-import java.util.PrimitiveIterator;
+import java.util.*;
 
 /**
  * Pagination calculator for players. Handles calculation of text widths,

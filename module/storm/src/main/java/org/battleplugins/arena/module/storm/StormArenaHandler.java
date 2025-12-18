@@ -1,13 +1,9 @@
 package org.battleplugins.arena.module.storm;
 
-import io.lumine.mythic.api.mobs.MythicMob;
 import org.battleplugins.arena.Arena;
-import org.battleplugins.arena.ArenaPlayer;
-import org.battleplugins.arena.BattleArena;
 import org.battleplugins.arena.competition.Competition;
 import org.battleplugins.arena.competition.LiveCompetition;
 import org.battleplugins.arena.competition.phase.CompetitionPhaseType;
-import org.battleplugins.arena.competition.phase.LiveCompetitionPhase;
 import org.battleplugins.arena.event.ArenaEventHandler;
 import org.battleplugins.arena.event.ArenaListener;
 import org.battleplugins.arena.event.arena.ArenaPhaseCompleteEvent;

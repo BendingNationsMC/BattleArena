@@ -10,7 +10,7 @@ import org.battleplugins.arena.stat.ArenaStat;
 import org.battleplugins.arena.stat.ArenaStats;
 import org.battleplugins.arena.util.Version;
 
-import java.awt.Color;
+import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
 

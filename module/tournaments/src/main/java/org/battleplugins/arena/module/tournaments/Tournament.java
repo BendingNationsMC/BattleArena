@@ -25,21 +25,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
-import static org.battleplugins.arena.module.tournaments.TournamentMessages.NEXT_ROUND_STARTING;
-import static org.battleplugins.arena.module.tournaments.TournamentMessages.NEXT_ROUND_STARTING_IN;
-import static org.battleplugins.arena.module.tournaments.TournamentMessages.TOURNAMENT_ALREADY_STARTED;
-import static org.battleplugins.arena.module.tournaments.TournamentMessages.TOURNAMENT_ARENA_NOT_EMPTY;
-import static org.battleplugins.arena.module.tournaments.TournamentMessages.TOURNAMENT_COMPLETED;
-import static org.battleplugins.arena.module.tournaments.TournamentMessages.TOURNAMENT_CONGRATULATIONS_TO_WINNERS;
-import static org.battleplugins.arena.module.tournaments.TournamentMessages.TOURNAMENT_DRAW;
-import static org.battleplugins.arena.module.tournaments.TournamentMessages.TOURNAMENT_FIRST_ROUND;
-import static org.battleplugins.arena.module.tournaments.TournamentMessages.TOURNAMENT_LOST_ROUND;
-import static org.battleplugins.arena.module.tournaments.TournamentMessages.TOURNAMENT_NOT_ENOUGH_ARENAS;
-import static org.battleplugins.arena.module.tournaments.TournamentMessages.TOURNAMENT_NOT_ENOUGH_PLAYERS;
-import static org.battleplugins.arena.module.tournaments.TournamentMessages.TOURNAMENT_SKIPPED_ROUND;
-import static org.battleplugins.arena.module.tournaments.TournamentMessages.TOURNAMENT_TEAM_AMOUNT;
-import static org.battleplugins.arena.module.tournaments.TournamentMessages.TOURNAMENT_TEAM_SIZE;
-import static org.battleplugins.arena.module.tournaments.TournamentMessages.TOURNAMENT_WON_ROUND;
+import static org.battleplugins.arena.module.tournaments.TournamentMessages.*;
 
 /**
  * A tournament is a competition where players compete against each other

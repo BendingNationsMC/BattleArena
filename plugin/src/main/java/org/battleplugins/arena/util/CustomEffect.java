@@ -4,12 +4,7 @@ import org.battleplugins.arena.config.ColorParser;
 import org.battleplugins.arena.config.DurationParser;
 import org.battleplugins.arena.config.ItemStackParser;
 import org.battleplugins.arena.config.ParseException;
-import org.bukkit.Bukkit;
-import org.bukkit.Color;
-import org.bukkit.FireworkEffect;
-import org.bukkit.Location;
-import org.bukkit.Particle;
-import org.bukkit.Vibration;
+import org.bukkit.*;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Firework;
@@ -18,12 +13,7 @@ import org.bukkit.inventory.meta.FireworkMeta;
 import org.bukkit.util.Vector;
 
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
+import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Function;
 

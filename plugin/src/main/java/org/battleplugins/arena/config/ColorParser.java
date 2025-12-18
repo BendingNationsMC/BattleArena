@@ -1,6 +1,6 @@
 package org.battleplugins.arena.config;
 
-import java.awt.Color;
+import java.awt.*;
 
 public class ColorParser implements ArenaConfigParser.Parser<Color> {
 

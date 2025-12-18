@@ -2,7 +2,6 @@ package org.battleplugins.arena.competition;
 
 import org.battleplugins.arena.Arena;
 import org.battleplugins.arena.ArenaPlayer;
-import org.battleplugins.arena.BattleArena;
 import org.battleplugins.arena.competition.map.MapType;
 import org.battleplugins.arena.competition.phase.phases.VictoryPhase;
 import org.battleplugins.arena.event.ArenaEventHandler;
@@ -12,8 +11,6 @@ import org.battleplugins.arena.event.player.ArenaDeathEvent;
 import org.battleplugins.arena.event.player.ArenaKillEvent;
 import org.battleplugins.arena.event.player.ArenaLeaveEvent;
 import org.battleplugins.arena.event.player.ArenaRespawnEvent;
-import org.bukkit.Bukkit;
-import org.bukkit.attribute.Attribute;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.entity.PlayerDeathEvent;

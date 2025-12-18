@@ -1,7 +1,6 @@
 package org.battleplugins.arena.module.storm.wave;
 
 import io.lumine.mythic.api.mobs.MythicMob;
-import io.lumine.mythic.api.skills.placeholders.PlaceholderDouble;
 import io.lumine.mythic.bukkit.BukkitAdapter;
 import io.lumine.mythic.bukkit.MythicBukkit;
 import io.lumine.mythic.core.mobs.ActiveMob;
@@ -23,15 +22,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitTask;
 
 import java.time.Duration;
-import java.util.ArrayDeque;
-import java.util.Arrays;
-import java.util.Deque;
-import java.util.List;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 
 /**
  * Handles the actual storm shrinking process for a single competition.
@@ -247,7 +238,7 @@ public final class StormController {
         double totalDelta = Math.max(0D, current - minRadius);
         double step = waves.isEmpty() ? 0D : totalDelta / waves.size();
 
-        double nextRadius = current;
+        double nextRadius;
         for (int i = 0; i < waves.size(); i++) {
             nextRadius = Math.max(minRadius, current - step * (i + 1));
             if (i == waves.size() - 1) {

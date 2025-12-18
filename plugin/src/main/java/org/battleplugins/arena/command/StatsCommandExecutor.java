@@ -5,7 +5,6 @@ import com.google.gson.JsonParser;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.battleplugins.arena.BattleArena;
-import org.battleplugins.arena.command.BaseCommandExecutor.CommandResult;
 import org.battleplugins.arena.proxy.Elements;
 import org.battleplugins.arena.ranked.RankedApi;
 import org.bukkit.Bukkit;

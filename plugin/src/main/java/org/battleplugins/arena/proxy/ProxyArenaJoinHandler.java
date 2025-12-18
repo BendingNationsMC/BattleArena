@@ -28,19 +28,11 @@ public class ProxyArenaJoinHandler implements Listener {
 
     private final BattleArena plugin;
 
-    private static final class PendingJoin {
-        private final Arena arena;
-        private final String mapName;
-        private final Set<SerializedPlayer> players;
-        private final String originServer;
-
-        private PendingJoin(Arena arena, String mapName, Collection<SerializedPlayer> players, String originServer) {
-            this.arena = arena;
-            this.mapName = mapName;
-            this.players = new HashSet<>(players);
-            this.originServer = originServer;
+    private record PendingJoin(Arena arena, String mapName, Set<SerializedPlayer> players, String originServer) {
+            private PendingJoin(Arena arena, String mapName, Collection<SerializedPlayer> players, String originServer) {
+                this(arena, mapName, new HashSet<>(players), originServer);
+            }
         }
-    }
 
     private final Map<UUID, PendingJoin> pendingJoins = new HashMap<>();
     private final Map<UUID, String> playerOrigins = new HashMap<>();
@@ -107,7 +99,7 @@ public class ProxyArenaJoinHandler implements Listener {
         if (map == null) {
             this.plugin.warn("Proxy arena join request for arena {} map {} could not be fulfilled: map not found.",
                     join.arena.getName(), join.mapName);
-            this.sendPlayersBackToOrigin(onlinePlayers, join, Messages.NO_ARENA_WITH_NAME);
+            this.sendPlayersBackToOrigin(onlinePlayers, Messages.NO_ARENA_WITH_NAME);
             return;
         }
 
@@ -119,13 +111,13 @@ public class ProxyArenaJoinHandler implements Listener {
                         for (Player player : onlinePlayers) {
                             Messages.ARENA_ERROR.send(player, ex.getMessage());
                         }
-                        this.sendPlayersBackToOrigin(onlinePlayers, join, null);
+                        this.sendPlayersBackToOrigin(onlinePlayers, null);
                         return;
                     }
 
                     Competition<?> competition = result.competition();
                     if (competition == null) {
-                        this.sendPlayersBackToOrigin(onlinePlayers, join,
+                        this.sendPlayersBackToOrigin(onlinePlayers,
                                 result.result() != null && result.result().message() != null
                                         ? result.result().message()
                                         : Messages.ARENA_NOT_JOINABLE);
@@ -139,7 +131,7 @@ public class ProxyArenaJoinHandler implements Listener {
                 });
     }
 
-    private void sendPlayersBackToOrigin(Set<Player> players, PendingJoin join, Message message) {
+    private void sendPlayersBackToOrigin(Set<Player> players, Message message) {
         for (Player player : players) {
             if (message != null) {
                 message.send(player);

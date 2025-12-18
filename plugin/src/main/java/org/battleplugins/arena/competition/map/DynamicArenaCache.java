@@ -4,7 +4,6 @@ import org.battleplugins.arena.BattleArena;
 import org.battleplugins.arena.BattleArenaConfig;
 import org.battleplugins.arena.competition.map.options.Bounds;
 import org.battleplugins.arena.util.BlockUtil;
-import org.bukkit.Bukkit;
 import org.bukkit.World;
 import org.jetbrains.annotations.Nullable;
 

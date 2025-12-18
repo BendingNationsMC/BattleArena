@@ -18,11 +18,7 @@ import org.battleplugins.arena.util.PositionWithRotation;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class MapCreateContext extends EditorContext<MapCreateContext> {
     private String mapName;

@@ -3,7 +3,6 @@ package org.battleplugins.arena.competition.team;
 import org.battleplugins.arena.ArenaPlayer;
 import org.battleplugins.arena.BattleArena;
 import org.battleplugins.arena.competition.LiveCompetition;
-import org.battleplugins.arena.competition.map.LiveCompetitionMap;
 import org.battleplugins.arena.competition.map.options.Spawns;
 import org.battleplugins.arena.competition.map.options.TeamSpawns;
 import org.battleplugins.arena.options.Teams;
@@ -11,12 +10,7 @@ import org.battleplugins.arena.stat.StatHolder;
 import org.battleplugins.arena.team.ArenaTeam;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 /**
  * Represents the team manager, which manages all the teams in the competition.

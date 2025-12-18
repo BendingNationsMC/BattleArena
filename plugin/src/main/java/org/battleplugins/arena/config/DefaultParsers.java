@@ -19,7 +19,7 @@ import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.potion.PotionEffect;
 
-import java.awt.Color;
+import java.awt.*;
 import java.time.Duration;
 import java.util.function.Function;
 

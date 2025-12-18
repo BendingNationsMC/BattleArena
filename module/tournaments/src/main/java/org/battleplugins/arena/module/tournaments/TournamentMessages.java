@@ -2,9 +2,7 @@ package org.battleplugins.arena.module.tournaments;
 
 import org.battleplugins.arena.messages.Message;
 
-import static org.battleplugins.arena.messages.Messages.error;
-import static org.battleplugins.arena.messages.Messages.info;
-import static org.battleplugins.arena.messages.Messages.success;
+import static org.battleplugins.arena.messages.Messages.*;
 
 public final class TournamentMessages {
     public static final Message TOURNAMENT_CREATED = success("tournament-created", "The tournament has been created for <secondary>{}</secondary>!");
