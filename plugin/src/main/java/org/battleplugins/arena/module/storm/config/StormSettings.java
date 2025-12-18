@@ -33,12 +33,18 @@ public class StormSettings {
         description = "Shrinking waves executed sequentially.",
         required = true
     )
-    private List<StormWave> waves = new ArrayList();
+    private List<StormWave> waves = new ArrayList<>();
     @ArenaOption(
         name = "active-phase",
         description = "Optional phase in which the storm should start."
     )
     private CompetitionPhaseType<?, ?> activePhase;
+
+    @ArenaOption(
+            name = "spawn-boss",
+            description = "Spawns the boss in the waiting room location"
+    )
+    private boolean spawnBoss = true;
 
     public StormSettings() {
     }
@@ -69,5 +75,9 @@ public class StormSettings {
 
     public boolean hasWaves() {
         return !this.getWaves().isEmpty();
+    }
+
+    public boolean isSpawnBoss() {
+        return spawnBoss;
     }
 }

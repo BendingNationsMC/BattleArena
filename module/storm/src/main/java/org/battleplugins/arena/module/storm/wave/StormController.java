@@ -105,7 +105,8 @@ public final class StormController {
     }
 
     private void tick() {
-        if (!spawnedBoss && this.waveStage == WaveStage.FINAL) {
+        if (!spawnedBoss && this.waveStage == WaveStage.FINAL && settings.isSpawnBoss()) {
+            // Use try catch
             MythicMob mob = MythicBukkit.inst().getMobManager().getMythicMob("LRD_KRAMPUS").orElse(null);
             if (mob != null) {
                 this.mob = mob.spawn(BukkitAdapter.adapt(center),1);
@@ -335,13 +336,15 @@ public final class StormController {
         this.activeBorders.clear();
     }
 
+    private static final double BLOCK_LENIENCY = 0.5;
+
     private void applyStormDamage() {
         World world = this.center.getWorld();
         if (world == null) return;
 
         // We set WORLD BORDER size to (currentRadius * 2) → square from centerX ± currentRadius, centerZ ± currentRadius.
         // To match that EXACTLY, use a square check, not a circular distance.
-        double maxDelta = this.currentRadius;
+        double maxDelta = this.currentRadius + BLOCK_LENIENCY;
 
         Set<ArenaPlayer> trackedPlayers = new HashSet<>();
         trackedPlayers.addAll(this.competition.getPlayers());
