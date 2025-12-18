@@ -11,5 +11,5 @@ import org.battleplugins.arena.module.ArenaModule;
 public class TeamHeads {
     public static final String ID = "team-heads";
 
-    private static final EventActionType<TeamHeadsAction> TEAM_HEADS = EventActionType.create("team-heads", TeamHeadsAction.class, TeamHeadsAction::new);
+    private static final EventActionType<TeamChestplateAction> TEAM_HEADS = EventActionType.create("team-heads", TeamChestplateAction.class, TeamChestplateAction::new);
 }

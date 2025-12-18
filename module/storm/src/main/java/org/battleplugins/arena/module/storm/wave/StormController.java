@@ -362,6 +362,7 @@ public final class StormController {
 
             // Outside the same square that the world border uses?
             if (Math.abs(dx) > maxDelta || Math.abs(dz) > maxDelta || Math.abs(dy) > maxDelta) {
+                //noinspection UnstableApiUsage
                 player.damage(1.0, DamageSource.builder(DamageType.OUTSIDE_BORDER).build());
             }
         }
