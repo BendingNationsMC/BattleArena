@@ -12,6 +12,8 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabExecutor;
 import org.bukkit.entity.Player;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -114,6 +116,27 @@ public class SpectateCommandExecutor extends BaseCommandExecutor {
 
         OfflinePlayer offline = Bukkit.getOfflinePlayer(targetName);
         return offline.getUniqueId();
+    }
+
+    @Override
+    protected List<String> onVerifyTabComplete(String arg, Class<?> parameter) {
+        List<String> completions = super.onVerifyTabComplete(arg, parameter);
+        if (parameter == String.class) {
+            List<String> duelPlayers = this.plugin.getSpectatableDuelPlayers();
+            if (duelPlayers.isEmpty()) {
+                return completions;
+            }
+
+            if (completions == null || completions.isEmpty()) {
+                return duelPlayers;
+            }
+
+            List<String> merged = new ArrayList<>(completions);
+            merged.addAll(duelPlayers);
+            return merged;
+        }
+
+        return completions;
     }
 
     private static final class StandaloneAdapter implements TabExecutor {

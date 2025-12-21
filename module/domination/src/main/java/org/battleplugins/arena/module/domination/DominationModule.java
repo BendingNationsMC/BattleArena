@@ -316,12 +316,15 @@ public class DominationModule implements ArenaModuleInitializer, Listener {
             arenaPlayer.getCompetition().getTeamManager().getPlayersOnTeam(
                     arenaPlayer.getTeam()
             ).forEach(p -> {
+                if (avatarState.contains(p.getPlayer().getUniqueId()))
+                    return;
                 avatarState.add(p.getPlayer().getUniqueId());
 
                 BendingPlayer bendingPlayer = BendingPlayer.getBendingPlayer(p.getPlayer());
                 if (bendingPlayer == null) return;
                 bendingPlayer.getCooldowns().remove("AvatarState");
-                new AvatarState(p.getPlayer());
+                AvatarState avatared = new AvatarState(p.getPlayer());
+                avatared.ignorePermission = true;
             });
         }
     }

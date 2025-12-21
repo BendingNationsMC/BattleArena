@@ -407,6 +407,26 @@ public class Connector {
 
                 break;
             }
+            case "duel_roster": {
+                if (!plugin.getMainConfig().isProxySupport() || plugin.getMainConfig().isProxyHost()) {
+                    break;
+                }
+
+                List<String> duelPlayers = new ArrayList<>();
+                if (object.has("players") && object.get("players").isJsonArray()) {
+                    object.getAsJsonArray("players").forEach(element -> {
+                        if (element.isJsonPrimitive()) {
+                            String name = element.getAsString();
+                            if (name != null && !name.isEmpty()) {
+                                duelPlayers.add(name);
+                            }
+                        }
+                    });
+                }
+
+                plugin.setRemoteDuelPlayers(duelPlayers);
+                break;
+            }
             // Sent whenever the proxy host has matched enough queued players for an arena.
             // - On the host: this fires a ProxyArenaJoinRequestEvent backed by SerializedPlayer data.
             // - On non-host servers: this sends the involved players to the proxy host.

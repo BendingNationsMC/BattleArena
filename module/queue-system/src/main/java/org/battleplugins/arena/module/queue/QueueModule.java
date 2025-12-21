@@ -49,13 +49,8 @@ public class QueueModule implements ArenaModuleInitializer, QueueService {
     private final Map<UUID, Long> queueStartTimes = new ConcurrentHashMap<>();
     private record QueuedEntry(String origin, SerializedPlayer player) {}
     private record MatchSelection(LiveCompetitionMap map, List<QueuedEntry> players) {}
-    private static final class Slot {
-        private final Elements requiredElement;
 
-        private Slot(Elements requiredElement) {
-            this.requiredElement = requiredElement;
-        }
-    }
+    private record Slot(Elements requiredElement) { }
 
     private static BukkitTask scannerTask;
 

@@ -44,6 +44,7 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.scheduler.BukkitTask;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -65,6 +66,7 @@ import java.util.stream.Stream;
  */
 public class BattleArena extends JavaPlugin implements LoggerHolder, BattleArenaApi {
     private static final int PLUGIN_ID = 4597;
+    private static final String DUELS_MODULE_ID = "duels";
 
     private static BattleArena instance;
 
@@ -101,6 +103,9 @@ public class BattleArena extends JavaPlugin implements LoggerHolder, BattleArena
     // Optional ranked API provided by the ranked module.
     private org.battleplugins.arena.ranked.RankedApi rankedApi;
     private ProxySpectateHandler proxySpectateHandler;
+    private BukkitTask duelRosterBroadcastTask;
+    private Set<String> lastBroadcastedDuelRoster = Set.of();
+    private final Set<String> remoteDuelPlayers = ConcurrentHashMap.newKeySet();
 
 
     @Override
@@ -304,6 +309,8 @@ public class BattleArena extends JavaPlugin implements LoggerHolder, BattleArena
             this.duelMenuService.shutdown();
         }
 
+        this.stopDuelRosterBroadcast();
+
         if (this.connector != null) {
             try {
                 this.connector.shutdown();
@@ -311,6 +318,7 @@ public class BattleArena extends JavaPlugin implements LoggerHolder, BattleArena
             }
             this.connector = null;
         }
+        this.remoteDuelPlayers.clear();
 
         this.config = null;
         this.teams = null;
@@ -373,6 +381,10 @@ public class BattleArena extends JavaPlugin implements LoggerHolder, BattleArena
                 // Non-host servers request the latest maps from the host via the TCP router.
                 this.connector.sendToRouter("{\"type\":\"sync_request\"}");
             }
+        }
+
+        if (this.config.isProxySupport() && this.config.isProxyHost()) {
+            this.startDuelRosterBroadcast();
         }
     }
 
@@ -1146,6 +1158,121 @@ public class BattleArena extends JavaPlugin implements LoggerHolder, BattleArena
 
     public DuelSelectionRegistry getDuelSelectionRegistry() {
         return this.duelSelections;
+    }
+
+    public List<String> getLocalDuelPlayers() {
+        List<Arena> arenas = this.getArenas();
+        if (arenas.isEmpty()) {
+            return List.of();
+        }
+
+        Set<String> names = new HashSet<>();
+        for (Arena arena : arenas) {
+            if (!arena.isModuleEnabled(DUELS_MODULE_ID)) {
+                continue;
+            }
+
+            for (Competition<?> competition : this.getCompetitions(arena)) {
+                if (!(competition instanceof LiveCompetition<?> liveCompetition)) {
+                    continue;
+                }
+
+                for (ArenaPlayer arenaPlayer : liveCompetition.getPlayers()) {
+                    Player player = arenaPlayer.getPlayer();
+                    if (player != null && player.isOnline()) {
+                        names.add(player.getName());
+                    }
+                }
+            }
+        }
+
+        if (names.isEmpty()) {
+            return List.of();
+        }
+
+        List<String> sorted = new ArrayList<>(names);
+        sorted.sort(String.CASE_INSENSITIVE_ORDER);
+        return sorted;
+    }
+
+    public List<String> getRemoteDuelPlayers() {
+        if (this.remoteDuelPlayers.isEmpty()) {
+            return List.of();
+        }
+
+        List<String> sorted = new ArrayList<>(this.remoteDuelPlayers);
+        sorted.sort(String.CASE_INSENSITIVE_ORDER);
+        return sorted;
+    }
+
+    public List<String> getSpectatableDuelPlayers() {
+        Set<String> merged = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+        merged.addAll(this.getLocalDuelPlayers());
+        merged.addAll(this.getRemoteDuelPlayers());
+        return List.copyOf(merged);
+    }
+
+    public void setRemoteDuelPlayers(Collection<String> players) {
+        this.remoteDuelPlayers.clear();
+        if (players == null) {
+            return;
+        }
+
+        for (String player : players) {
+            if (player != null && !player.isEmpty()) {
+                this.remoteDuelPlayers.add(player);
+            }
+        }
+    }
+
+    private void startDuelRosterBroadcast() {
+        if (this.duelRosterBroadcastTask != null) {
+            this.duelRosterBroadcastTask.cancel();
+        }
+
+        this.duelRosterBroadcastTask = Bukkit.getScheduler().runTaskTimer(this, () -> {
+            if (!this.getMainConfig().isProxySupport() || !this.getMainConfig().isProxyHost()) {
+                return;
+            }
+
+            List<String> current = this.getLocalDuelPlayers();
+            Set<String> currentSet = new LinkedHashSet<>(current);
+            if (!currentSet.equals(this.lastBroadcastedDuelRoster)) {
+                this.lastBroadcastedDuelRoster = currentSet;
+                this.broadcastDuelRoster(current);
+            }
+        }, 40L, 80L);
+    }
+
+    private void stopDuelRosterBroadcast() {
+        if (this.duelRosterBroadcastTask != null) {
+            this.duelRosterBroadcastTask.cancel();
+            this.duelRosterBroadcastTask = null;
+        }
+
+        if (this.config != null && this.config.isProxySupport() && this.config.isProxyHost()) {
+            this.broadcastDuelRoster(List.of());
+        }
+
+        this.lastBroadcastedDuelRoster = Set.of();
+    }
+
+    private void broadcastDuelRoster(Collection<String> names) {
+        Connector connector = this.getConnector();
+        if (connector == null) {
+            return;
+        }
+
+        JsonObject payload = new JsonObject();
+        payload.addProperty("type", "duel_roster");
+        JsonArray players = new JsonArray();
+        for (String name : names) {
+            if (name != null && !name.isEmpty()) {
+                players.add(name);
+            }
+        }
+        payload.add("players", players);
+        connector.sendToRouter(payload.toString());
     }
 
     /**
