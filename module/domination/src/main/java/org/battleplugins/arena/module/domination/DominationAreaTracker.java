@@ -14,6 +14,8 @@ import org.bukkit.*;
 import org.bukkit.boss.BarColor;
 import org.bukkit.boss.BarStyle;
 import org.bukkit.boss.BossBar;
+import org.bukkit.block.Block;
+import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Player;
 
 import java.time.Duration;
@@ -41,6 +43,9 @@ final class DominationAreaTracker {
     private boolean locked;
     private long visualTick;
     private Hologram hologram;
+    private Block beaconBlock;
+    private Block glassBlock;
+    private final Map<Block, BlockData> originalBlocks = new HashMap<>();
 
     DominationAreaTracker(String id, DominationAreaDefinition definition, Location center) {
         this.id = id;
@@ -88,15 +93,44 @@ final class DominationAreaTracker {
         );
     }
 
-    void removeHologram() {
-        if (this.hologram == null) {
+    void spawnBeacon() {
+        if (this.beaconBlock != null) {
             return;
         }
 
-        Holograms.removeHologram(this.hologram);
-        this.hologram = null;
+        World world = this.center.getWorld();
+        if (world == null) {
+            return;
+        }
+
+        // Sink the beacon and base two blocks below the center so the hardware is hidden.
+        Location beaconLocation = this.center.clone().add(0, -2, 0);
+        this.beaconBlock = world.getBlockAt(beaconLocation);
+        this.glassBlock = this.beaconBlock.getRelative(0, 1, 0);
+
+        this.originalBlocks.clear();
+        this.setBlockAndRemember(this.beaconBlock, Material.BEACON);
+        this.setBlockAndRemember(this.glassBlock, Material.GLASS);
+
+        // 3x3 beacon base directly beneath the beacon block to ensure activation
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dz = -1; dz <= 1; dz++) {
+                Block baseBlock = this.beaconBlock.getRelative(dx, -1, dz);
+                this.setBlockAndRemember(baseBlock, Material.IRON_BLOCK);
+            }
+        }
+
+        this.updateBeaconColor(null, false, false, false);
+    }
+
+    void removeHologram() {
+        if (this.hologram != null) {
+            Holograms.removeHologram(this.hologram);
+            this.hologram = null;
+        }
         this.captureBossBar.removeAll();
         this.bossBarViewers.clear();
+        this.restoreBeacon();
     }
 
     /**
@@ -320,6 +354,10 @@ final class DominationAreaTracker {
         this.updateBossBar(controlState, progress, activeCapture, secured, contested);
         ArenaTeam displayTeam = secured ? this.owner : this.capturingTeam;
         this.updateHologramProgress(progress, contested, displayTeam, activeCapture, secured);
+
+        ArenaTeam beaconTeam = this.capturingTeam != null ? this.capturingTeam : this.owner;
+        boolean beaconSecured = this.capturingTeam == null && this.owner != null;
+        this.updateBeaconColor(beaconTeam, activeCapture, contested, beaconSecured);
     }
 
     private void updateBossBar(ControlState state, double progress, boolean activeCapture, boolean secured, boolean contested) {
@@ -438,6 +476,86 @@ final class DominationAreaTracker {
             case RESISTANCE -> "Bulwark (Resistance)";
             case REDUCE_COOLDOWN -> "Focus (Cooldown Reduction)";
         };
+    }
+
+    private void setBlockAndRemember(Block block, Material type) {
+        if (block == null) {
+            return;
+        }
+
+        this.originalBlocks.putIfAbsent(block, block.getBlockData().clone());
+        block.setType(type, false);
+    }
+
+    private void updateBeaconColor(ArenaTeam team, boolean activeCapture, boolean contested, boolean secured) {
+        if (this.glassBlock == null) {
+            return;
+        }
+
+        Material desired;
+        if (contested) {
+            desired = Material.PURPLE_STAINED_GLASS;
+        } else if (activeCapture && team != null) {
+            // Blink between team color and white while capturing. Slow the blink to reduce client color lag.
+            boolean showTeamColor = (this.visualTick / 40) % 2 == 0;
+            desired = showTeamColor ? this.glassMaterialForTeam(team) : Material.WHITE_STAINED_GLASS;
+        } else if (secured && team != null) {
+            desired = this.glassMaterialForTeam(team);
+        } else {
+            desired = Material.WHITE_STAINED_GLASS;
+        }
+
+        if (this.glassBlock.getType() != desired) {
+            this.glassBlock.setType(desired, false);
+        }
+    }
+
+    private Material glassMaterialForTeam(ArenaTeam team) {
+        java.awt.Color awtColor = team == null ? null : team.getColor();
+        if (awtColor == null) {
+            return Material.WHITE_STAINED_GLASS;
+        }
+
+        DyeColor dye = this.nearestDyeColor(awtColor);
+        String materialName = dye.name() + "_STAINED_GLASS";
+        Material material = Material.matchMaterial(materialName);
+        return material == null ? Material.WHITE_STAINED_GLASS : material;
+    }
+
+    private DyeColor nearestDyeColor(java.awt.Color color) {
+        DyeColor closest = DyeColor.WHITE;
+        double bestDistance = Double.MAX_VALUE;
+        for (DyeColor dye : DyeColor.values()) {
+            org.bukkit.Color dyeColor = dye.getColor();
+            double distance = this.colorDistanceSquared(
+                    color.getRed(), color.getGreen(), color.getBlue(),
+                    dyeColor.getRed(), dyeColor.getGreen(), dyeColor.getBlue()
+            );
+            if (distance < bestDistance) {
+                bestDistance = distance;
+                closest = dye;
+            }
+        }
+
+        return closest;
+    }
+
+    private double colorDistanceSquared(int r1, int g1, int b1, int r2, int g2, int b2) {
+        int dr = r1 - r2;
+        int dg = g1 - g2;
+        int db = b1 - b2;
+        return dr * dr + dg * dg + db * db;
+    }
+
+    private void restoreBeacon() {
+        if (this.beaconBlock == null) {
+            return;
+        }
+
+        this.originalBlocks.forEach((block, data) -> block.setBlockData(data, false));
+        this.originalBlocks.clear();
+        this.beaconBlock = null;
+        this.glassBlock = null;
     }
 
     record CaptureResult(ArenaTeam capturingTeam, ArenaTeam previousOwner, boolean lockedAfterCapture) {

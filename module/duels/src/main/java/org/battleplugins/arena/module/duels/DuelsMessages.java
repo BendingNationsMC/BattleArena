@@ -25,4 +25,5 @@ public final class DuelsMessages {
     public static final Message PARTY_MEMBER_BUSY = Messages.error("duel-party-member-busy", "Party member <secondary>{}</secondary> cannot duel right now.");
     public static final Message NOT_ENOUGH_TEAM_SPAWNS = Messages.error("duel-not-enough-team-spawns", "Arena <secondary>{}</secondary> must have at least two team spawn groups configured to host duels.");
     public static final Message PARTY_TOO_LARGE_FOR_TEAM = Messages.error("duel-party-too-large-for-team", "Cannot start the duel because <secondary>{}</secondary>'s party (<secondary>{}</secondary> players) does not fit into any available team. Add more spawn points or reduce the party size.");
+    public static final Message DUEL_RESULT_BROADCAST = Messages.info("duel-result-broadcast", "<secondary>{}</secondary> has defeated <secondary>{}</secondary> in a duel with <primary>{}</primary> hearts remaining");
 }

@@ -13,6 +13,8 @@ import org.battleplugins.arena.competition.map.LiveCompetitionMap;
 import org.battleplugins.arena.competition.map.MapType;
 import org.battleplugins.arena.competition.team.TeamManager;
 import org.battleplugins.arena.event.arena.ArenaCreateExecutorEvent;
+import org.battleplugins.arena.event.arena.ArenaLoseEvent;
+import org.battleplugins.arena.event.arena.ArenaVictoryEvent;
 import org.battleplugins.arena.event.player.ArenaLeaveEvent;
 import org.battleplugins.arena.event.player.ArenaPreJoinEvent;
 import org.battleplugins.arena.feature.party.Parties;
@@ -32,6 +34,7 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.jetbrains.annotations.Nullable;
 
+import java.text.DecimalFormat;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -46,6 +49,11 @@ public class Duels implements ArenaModuleInitializer {
     private final Map<UUID, DuelRequest> duelRequestsByRequester = new HashMap<>();
     private final Map<UUID, DuelRequest> duelRequestsByTarget = new HashMap<>();
     private final Map<UUID, String> duelOrigins = new ConcurrentHashMap<>();
+    private final Set<Competition<?>> duelCompetitions = Collections.newSetFromMap(new WeakHashMap<>());
+    private final Map<Competition<?>, Map<UUID, String>> duelParticipants = new ConcurrentHashMap<>();
+    private final Map<Competition<?>, Map<UUID, String>> duelLosers = new ConcurrentHashMap<>();
+    private final Map<Competition<?>, Set<String>> duelOriginsByCompetition = new ConcurrentHashMap<>();
+    private final Set<Competition<?>> announcedDuels = Collections.newSetFromMap(new WeakHashMap<>());
 
     static final class DuelRequest {
         private final UUID requester;
@@ -240,6 +248,56 @@ public class Duels implements ArenaModuleInitializer {
     }
 
     @EventHandler
+    public void onArenaLose(ArenaLoseEvent event) {
+        Competition<?> competition = event.getCompetition();
+        if (!this.isTrackedDuel(competition)) {
+            return;
+        }
+
+        Map<UUID, String> losers = new LinkedHashMap<>();
+        for (ArenaPlayer arenaPlayer : event.getLosers()) {
+            Player player = arenaPlayer.getPlayer();
+            if (player != null) {
+                losers.put(player.getUniqueId(), player.getName());
+            }
+        }
+
+        if (!losers.isEmpty()) {
+            this.duelLosers.put(competition, losers);
+        }
+    }
+
+    @EventHandler
+    public void onArenaVictory(ArenaVictoryEvent event) {
+        Competition<?> competition = event.getCompetition();
+        if (!this.isTrackedDuel(competition)) {
+            return;
+        }
+
+        if (!this.announcedDuels.add(competition)) {
+            return;
+        }
+
+        Player winner = event.getVictors()
+                .stream()
+                .map(ArenaPlayer::getPlayer)
+                .filter(Objects::nonNull)
+                .findFirst()
+                .orElse(null);
+        if (winner == null) {
+            return;
+        }
+
+        String loserName = this.resolveLoserName(competition, winner.getUniqueId());
+        String message = DuelsMessages.DUEL_RESULT_BROADCAST
+                .withContext(winner.getName(), loserName, this.formatHeartsRemaining(winner.getHealth()))
+                .asMiniMessage();
+
+        this.broadcastDuelResult(event.getArena(), competition, message);
+        this.cleanupDuelTracking(competition);
+    }
+
+    @EventHandler
     public void onProxyDuelRequest(ProxyDuelRequestEvent event) {
         if (!event.getArena().isModuleEnabled(ID)) {
             return;
@@ -345,7 +403,7 @@ public class Duels implements ArenaModuleInitializer {
         if (proxySupport && !proxyHost) {
             for (Player participant : allParticipants) {
                 if (plugin.isPendingProxyJoin(participant.getUniqueId())) {
-                    Messages.ARENA_ERROR.send(participant, "A proxy map is currently loading for you. Please wait.");
+                    Messages.LOADING_MAP.send(participant);
                     return;
                 }
             }
@@ -393,6 +451,7 @@ public class Duels implements ArenaModuleInitializer {
 
         this.ensurePartyOnTeam(teamManager, requesterParty, requesterTeam);
         this.ensurePartyOnTeam(teamManager, opponentParty, opponentTeam);
+        this.trackDuel(competition, allParticipants);
     }
 
     public void handleProxyDuelRequest(ProxyDuelRequestEvent event) {
@@ -483,7 +542,7 @@ public class Duels implements ArenaModuleInitializer {
 
         for (Player participant : allParticipants) {
             plugin.addPendingProxyJoin(participant.getUniqueId());
-            Messages.ARENA_ERROR.send(participant, "Preparing duel map on proxy host. Please wait...");
+            Messages.LOADING_MAP.send(participant);
         }
     }
 
@@ -548,11 +607,9 @@ public class Duels implements ArenaModuleInitializer {
             ordered.add(leader.getUniqueId());
             for (UUID memberId : ordered) {
                 Player online = Bukkit.getPlayer(memberId);
-                if (online == null) {
-                    return null;
+                if (online != null) {
+                    participants.add(online);
                 }
-
-                participants.add(online);
             }
         } else {
             participants.add(leader);
@@ -651,6 +708,112 @@ public class Duels implements ArenaModuleInitializer {
                 teamManager.joinTeam(arenaPlayer, team);
             }
         }
+    }
+
+    private void trackDuel(Competition<?> competition, Collection<Player> participants) {
+        if (competition == null || participants == null || participants.isEmpty()) {
+            return;
+        }
+
+        this.duelCompetitions.add(competition);
+
+        Map<UUID, String> names = new LinkedHashMap<>();
+        Set<String> origins = new LinkedHashSet<>();
+        for (Player participant : participants) {
+            UUID id = participant.getUniqueId();
+            names.put(id, participant.getName());
+
+            String origin = this.duelOrigins.get(id);
+            if (origin != null && !origin.isEmpty()) {
+                origins.add(origin);
+            }
+        }
+
+        if (!names.isEmpty()) {
+            this.duelParticipants.put(competition, names);
+        }
+
+        if (!origins.isEmpty()) {
+            this.duelOriginsByCompetition.put(competition, origins);
+        }
+    }
+
+    private boolean isTrackedDuel(@Nullable Competition<?> competition) {
+        return competition != null && this.duelCompetitions.contains(competition);
+    }
+
+    private String resolveLoserName(Competition<?> competition, UUID winnerId) {
+        Map<UUID, String> losers = this.duelLosers.get(competition);
+        if (losers != null) {
+            for (Map.Entry<UUID, String> entry : losers.entrySet()) {
+                if (!entry.getKey().equals(winnerId)) {
+                    return entry.getValue();
+                }
+            }
+        }
+
+        Map<UUID, String> participants = this.duelParticipants.get(competition);
+        if (participants != null) {
+            for (Map.Entry<UUID, String> entry : participants.entrySet()) {
+                if (!entry.getKey().equals(winnerId)) {
+                    return entry.getValue();
+                }
+            }
+        }
+
+        return "their opponent";
+    }
+
+    private String formatHeartsRemaining(double health) {
+        double hearts = Math.max(0.0D, health / 2.0D);
+        return new DecimalFormat("#.#").format(hearts);
+    }
+
+    private void broadcastDuelResult(Arena arena, Competition<?> competition, String miniMessage) {
+        BattleArena plugin = arena.getPlugin();
+        Set<String> origins = new LinkedHashSet<>(this.duelOriginsByCompetition.getOrDefault(competition, Collections.emptySet()));
+        if (origins.isEmpty()) {
+            Map<UUID, String> participants = this.duelParticipants.get(competition);
+            if (participants != null) {
+                for (UUID participant : participants.keySet()) {
+                    String origin = this.duelOrigins.get(participant);
+                    if (origin != null && !origin.isEmpty()) {
+                        origins.add(origin);
+                    }
+                }
+            }
+        }
+
+        if (plugin.getMainConfig().isProxySupport() && plugin.getConnector() != null) {
+            boolean proxyHost = plugin.getMainConfig().isProxyHost();
+            String selfOrigin = plugin.getMainConfig().getProxyServerName();
+            if (proxyHost && selfOrigin != null && !selfOrigin.isEmpty()) {
+                origins.remove(selfOrigin); // avoid bouncing back to the host
+            }
+
+            if (!origins.isEmpty()) {
+                for (String origin : origins) {
+                    JsonObject payload = new JsonObject();
+                    payload.addProperty("type", "duel_result");
+                    payload.addProperty("message", miniMessage);
+                    if (origin != null && !origin.isEmpty()) {
+                        payload.addProperty("origin", origin);
+                    }
+                    plugin.getConnector().sendToRouter(payload.toString());
+                }
+            }
+        }
+
+        if (plugin.getMainConfig().isProxyHost() || plugin.getConnector() == null) {
+            Bukkit.getScheduler().runTask(plugin, () -> org.bukkit.Bukkit.broadcast(Messages.deserializeMiniMessage(miniMessage)));
+        }
+    }
+
+    private void cleanupDuelTracking(Competition<?> competition) {
+        this.duelCompetitions.remove(competition);
+        this.duelParticipants.remove(competition);
+        this.duelLosers.remove(competition);
+        this.duelOriginsByCompetition.remove(competition);
     }
 
     private JsonObject serializePlayer(Player player) {

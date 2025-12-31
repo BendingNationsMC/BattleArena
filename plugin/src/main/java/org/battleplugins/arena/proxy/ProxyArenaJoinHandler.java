@@ -14,6 +14,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.scheduler.BukkitTask;
 
 import java.util.*;
 
@@ -26,6 +27,8 @@ import java.util.*;
  */
 public class ProxyArenaJoinHandler implements Listener {
 
+    private static final long JOIN_TIMEOUT_TICKS = 20L * 30; // 30 seconds
+
     private final BattleArena plugin;
 
     private record PendingJoin(Arena arena, String mapName, Set<SerializedPlayer> players, String originServer) {
@@ -36,6 +39,7 @@ public class ProxyArenaJoinHandler implements Listener {
 
     private final Map<UUID, PendingJoin> pendingJoins = new HashMap<>();
     private final Map<UUID, String> playerOrigins = new HashMap<>();
+    private final Map<PendingJoin, BukkitTask> joinTimeouts = new HashMap<>();
 
     public ProxyArenaJoinHandler(BattleArena plugin) {
         this.plugin = plugin;
@@ -60,6 +64,7 @@ public class ProxyArenaJoinHandler implements Listener {
             }
         }
 
+        this.scheduleJoinTimeout(join);
         this.tryStartJoin(join);
     }
 
@@ -87,6 +92,8 @@ public class ProxyArenaJoinHandler implements Listener {
 
             onlinePlayers.add(player);
         }
+
+        this.cancelJoinTimeout(join);
 
         // All players are now present on the proxy host
         for (SerializedPlayer id : join.players) {
@@ -129,6 +136,50 @@ public class ProxyArenaJoinHandler implements Listener {
                         Messages.ARENA_JOINED.send(player, competition.getMap().getName());
                     }
                 });
+    }
+
+    private void scheduleJoinTimeout(PendingJoin join) {
+        this.cancelJoinTimeout(join);
+        BukkitTask task = Bukkit.getScheduler().runTaskLater(this.plugin, () -> this.handleJoinTimeout(join), JOIN_TIMEOUT_TICKS);
+        this.joinTimeouts.put(join, task);
+    }
+
+    private void cancelJoinTimeout(PendingJoin join) {
+        BukkitTask task = this.joinTimeouts.remove(join);
+        if (task != null) {
+            task.cancel();
+        }
+    }
+
+    private void handleJoinTimeout(PendingJoin join) {
+        boolean stillPending = join.players.stream()
+                .map(player -> UUID.fromString(player.getUuid()))
+                .anyMatch(id -> join.equals(this.pendingJoins.get(id)));
+        if (!stillPending) {
+            return;
+        }
+
+        Set<Player> onlinePlayers = new HashSet<>();
+        for (SerializedPlayer serializedPlayer : join.players) {
+            UUID id = UUID.fromString(serializedPlayer.getUuid());
+            if (!join.equals(this.pendingJoins.get(id))) {
+                continue;
+            }
+
+            Player player = Bukkit.getPlayer(id);
+            if (player != null) {
+                onlinePlayers.add(player);
+            } else {
+                this.pendingJoins.remove(id);
+                this.playerOrigins.remove(id);
+            }
+        }
+
+        if (!onlinePlayers.isEmpty()) {
+            this.sendPlayersBackToOrigin(onlinePlayers, Messages.PROXY_ARENA_JOIN_TIMEOUT);
+        }
+
+        this.joinTimeouts.remove(join);
     }
 
     private void sendPlayersBackToOrigin(Set<Player> players, Message message) {

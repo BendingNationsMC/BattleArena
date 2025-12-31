@@ -8,6 +8,8 @@ import org.battleplugins.arena.event.action.EventAction;
 import org.battleplugins.arena.resolver.Resolvable;
 import org.battleplugins.arena.team.ArenaTeam;
 import org.bukkit.Material;
+import org.bukkit.enchantments.Enchantment;
+import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.LeatherArmorMeta;
 
@@ -37,14 +39,21 @@ public class TeamChestplateAction extends EventAction {
                 return;
             }
 
+            // Mask out alpha channel so Bukkit only receives 0xRRGGBB values
+            int rgb = team.getColor().getRGB() & 0xFFFFFF;
+
             // Set color
-            leatherMeta.setColor(org.bukkit.Color.fromRGB(team.getColor().getRGB()));
+            leatherMeta.setColor(org.bukkit.Color.fromRGB(rgb));
 
             // Set name
             leatherMeta.displayName(
-                    Component.text(team.getName() + " Team", TextColor.color(team.getColor().getRGB()))
+                    Component.text(team.getName() + " Team", TextColor.color(rgb))
                             .decoration(TextDecoration.ITALIC, false)
             );
+
+            leatherMeta.setUnbreakable(true);
+            leatherMeta.addEnchant(Enchantment.BINDING_CURSE, 1, true);
+            leatherMeta.addItemFlags(ItemFlag.HIDE_ENCHANTS, ItemFlag.HIDE_UNBREAKABLE);
         });
 
         arenaPlayer.getPlayer().getInventory().setChestplate(item);

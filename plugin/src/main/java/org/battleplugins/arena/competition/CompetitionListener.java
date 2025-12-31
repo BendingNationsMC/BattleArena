@@ -67,10 +67,6 @@ class CompetitionListener<T extends Competition<T>> implements ArenaListener, Co
             return;
         }
 
-        player.getPlayer().setHealth(player.getPlayer().getMaxHealth());
-        player.getPlayer().setFireTicks(0);
-        player.getPlayer().spigot().respawn();
-
         // Call the death event
         this.competition.getArena().getEventManager().callEvent(new ArenaDeathEvent(player));
 

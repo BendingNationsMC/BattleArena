@@ -69,6 +69,7 @@ public final class Messages {
     public static final Message PROXY_SPECTATE_TARGET_NOT_FOUND = error("proxy-spectate-target-not-found", "Could not find that player on the proxy host.");
     public static final Message PROXY_SPECTATE_TARGET_NOT_IN_ARENA = error("proxy-spectate-target-not-in-arena", "That player is not currently in an arena.");
     public static final Message PROXY_SPECTATE_ALREADY_PENDING = error("proxy-spectate-already-pending", "A proxy spectate transfer is already awaiting your arrival.");
+    public static final Message PROXY_ARENA_JOIN_TIMEOUT = error("proxy-arena-join-timeout", "Timed out waiting for other players. Sending you back to your previous server.");
     public static final Message ARENA_LEFT = info("arena-left", "You have left <secondary>{}</secondary>!");
     public static final Message ARENA_REMOVED = success("arena-removed", "The arena <secondary>{}</secondary> has been removed!");
     public static final Message NOT_EVENT = error("arena-not-event", "The specified arena is not an event!");
@@ -123,6 +124,7 @@ public final class Messages {
                 <gray>-</gray> <secondary>dynamic</secondary>: A map that is freshly created in a separate world on-demand. This map can support multiple games at once. Requires WorldEdit!
                 """
     );
+    public static final Message LOADING_MAP = info("arena-loading-map", "A proxy map is currently loading for you. Please wait.");
     public static final Message MAP_SET_MIN_POSITION = info("editor-map-set-min-position", "Click a block to set the minimum (first) position of the map region.");
     public static final Message MAP_SET_MAX_POSITION = info("editor-map-set-max-position", "Click a block to set the maximum (second) position of the map region.");
     public static final Message MAP_SET_WAITROOM_SPAWN = info("editor-map-set-waitroom-spawn", "Type \"waitroom\" to set the waitroom spawn, or \"cancel\" to cancel.");

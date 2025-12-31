@@ -44,6 +44,7 @@ final class DominationRound {
 
             Location center = definition.getLocation().toLocation(world);
             DominationAreaTracker tracker = new DominationAreaTracker(id, definition, center);
+            tracker.spawnBeacon();
             tracker.spawnHologram(this.competition);
             this.trackers.put(id, tracker);
         });

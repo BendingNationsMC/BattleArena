@@ -86,30 +86,25 @@ public class ArenaCommandExecutor extends BaseCommandExecutor {
         Set<Player> players;
         Party party = Parties.getParty(player.getUniqueId());
         if (party != null) {
-            players = new HashSet<>();
+            Set<Player> partyPlayers = new HashSet<>();
             PartyMember leader = party.getLeader();
             if (leader != null) {
-                // If player is not the leader, deny them entry
-                if (!leader.getUniqueId().equals(player.getUniqueId())) {
-                    Messages.CANNOT_JOIN_ARENA_NOT_PARTY_LEADER.send(player);
-                    return;
+                // Only pull the party with the leader; allow members to join solo.
+                if (leader.getUniqueId().equals(player.getUniqueId())) {
+                    partyPlayers.add(player);
                 }
-
-                players.add(player);
             }
 
             for (PartyMember member : party.getMembers()) {
                 Player memberPlayer = Bukkit.getPlayer(member.getUniqueId());
-                if (memberPlayer != null) {
-                    players.add(memberPlayer);
+                if (memberPlayer != null && (leader == null || leader.getUniqueId().equals(player.getUniqueId()))) {
+                    partyPlayers.add(memberPlayer);
                 }
             }
 
             // If we get into a weird state where the party is empty,
             // just add the player
-            if (players.isEmpty()) {
-                players.add(player);
-            }
+            players = partyPlayers.isEmpty() ? Set.of(player) : partyPlayers;
         } else {
             players = Set.of(player);
         }
@@ -119,7 +114,7 @@ public class ArenaCommandExecutor extends BaseCommandExecutor {
         BattleArena plugin = this.arena.getPlugin();
         for (Player toJoin : players) {
             if (plugin.isPendingProxyJoin(toJoin.getUniqueId())) {
-                Messages.ARENA_ERROR.send(player, "A proxy map is currently loading for you. Please wait.");
+                Messages.LOADING_MAP.send(player);
                 return;
             }
         }

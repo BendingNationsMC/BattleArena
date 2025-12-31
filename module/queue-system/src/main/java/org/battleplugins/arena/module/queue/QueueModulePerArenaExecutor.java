@@ -33,7 +33,7 @@ public class QueueModulePerArenaExecutor implements SubCommandExecutor {
         BattleArena plugin = arena.getPlugin();
 
         if (plugin.isPendingProxyJoin(player.getUniqueId())) {
-            Messages.ARENA_ERROR.send(player, "A proxy map is currently loading for you. Please wait.");
+            Messages.ARENA_ERROR.send(player);
             return;
         }
 

@@ -2,6 +2,7 @@ package org.battleplugins.arena.module.domination;
 
 import com.projectkorra.projectkorra.BendingPlayer;
 import com.projectkorra.projectkorra.Element;
+import com.projectkorra.projectkorra.ProjectKorra;
 import com.projectkorra.projectkorra.attribute.Attribute;
 import com.projectkorra.projectkorra.attribute.AttributeModification;
 import com.projectkorra.projectkorra.attribute.AttributeModifier;
@@ -35,6 +36,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 
+import java.security.Permission;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -322,6 +324,7 @@ public class DominationModule implements ArenaModuleInitializer, Listener {
 
                 BendingPlayer bendingPlayer = BendingPlayer.getBendingPlayer(p.getPlayer());
                 if (bendingPlayer == null) return;
+                player.addAttachment(ProjectKorra.plugin, "bending.ability.avatarstate", true);
                 bendingPlayer.getCooldowns().remove("AvatarState");
                 AvatarState avatared = new AvatarState(p.getPlayer());
                 avatared.ignorePermission = true;
@@ -337,7 +340,8 @@ public class DominationModule implements ArenaModuleInitializer, Listener {
             if (bPlayer == null || !increasedDamage.contains(bPlayer.getPlayer().getUniqueId()))
                 return;
 
-            final double modification = event.getAbility().getElement() == Element.CHI ? 0.5 : 1;
+            final double modification = event.getAbility().getElement() == Element.CHI || event.getAbility().getElement() == Element.AIR
+                    ? 0.5 : 1;
 
             event.addModification(AttributeModification.of(AttributeModifier.ADDITION, modification,
                     new NamespacedKey(BattleArena.getInstance(), "double_damage")));

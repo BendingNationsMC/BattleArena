@@ -113,6 +113,7 @@ public final class StormController {
 
                 int partySize = this.competition.getAlivePlayerCount();
                 double scaledHealth = 100 + 25 * partySize;
+                scaledHealth = Math.min(scaledHealth, 200);
                 this.mob.getEntity().setMaxHealth(scaledHealth);
                 this.mob.getEntity().setHealth(scaledHealth);
             }

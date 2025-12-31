@@ -1,6 +1,8 @@
 package org.battleplugins.arena.module.domination;
 
 import com.projectkorra.projectkorra.BendingPlayer;
+import com.projectkorra.projectkorra.ProjectKorra;
+import com.projectkorra.projectkorra.object.Style;
 import org.battleplugins.arena.Arena;
 import org.battleplugins.arena.competition.Competition;
 import org.battleplugins.arena.competition.LiveCompetition;
@@ -15,6 +17,7 @@ import org.battleplugins.arena.event.player.ArenaLeaveEvent;
 import org.battleplugins.arena.event.player.ArenaRespawnEvent;
 import org.battleplugins.arena.module.domination.config.DominationArenaSettings;
 import org.battleplugins.arena.module.domination.config.DominationMapSettings;
+import org.bukkit.permissions.PermissionAttachment;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 
@@ -89,6 +92,10 @@ final class DominationArenaHandler implements ArenaListener {
         BendingPlayer bPlayer = BendingPlayer.getBendingPlayer(event.getPlayer());
         if (bPlayer == null) return;
         bPlayer.setStyle(null);
+        PermissionAttachment att = bPlayer.getPlayer()
+                .addAttachment(ProjectKorra.plugin, "bending.ability.avatarstate", true);
+        bPlayer.getPlayer().removeAttachment(att);
+
     }
 
     @ArenaEventHandler

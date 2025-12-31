@@ -427,6 +427,32 @@ public class Connector {
                 plugin.setRemoteDuelPlayers(duelPlayers);
                 break;
             }
+            case "duel_result": {
+                if (!plugin.getMainConfig().isProxySupport()) {
+                    break;
+                }
+
+                String origin = object.has("origin") ? object.get("origin").getAsString() : "";
+                String thisOrigin = plugin.getMainConfig().getProxyServerName();
+                if (thisOrigin == null || thisOrigin.isEmpty()) {
+                    break;
+                }
+
+                if (!origin.isEmpty() && !origin.equals(thisOrigin)) {
+                    break;
+                }
+
+                if (!object.has("message")) {
+                    break;
+                }
+
+                String m = object.get("message").getAsString();
+                Bukkit.getScheduler().runTask(plugin, () -> {
+                    var component = Messages.deserializeMiniMessage(m);
+                    Bukkit.broadcast(component);
+                });
+                break;
+            }
             // Sent whenever the proxy host has matched enough queued players for an arena.
             // - On the host: this fires a ProxyArenaJoinRequestEvent backed by SerializedPlayer data.
             // - On non-host servers: this sends the involved players to the proxy host.
