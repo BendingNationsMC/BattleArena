@@ -33,7 +33,7 @@ public class DuelCommandExecutor extends BaseCommandExecutor {
             maxArgs = 0
     )
     public CommandResult duel(CommandSender sender) {
-        return this.openMenu(sender, null);
+        return this.openMenu(sender, null, 1);
     }
 
     @ArenaCommand(
@@ -44,10 +44,26 @@ public class DuelCommandExecutor extends BaseCommandExecutor {
             maxArgs = 1
     )
     public CommandResult duel(CommandSender sender, @Argument(name = "player") Player target) {
-        return this.openMenu(sender, target);
+        return this.openMenu(sender, target, 1);
     }
 
-    private CommandResult openMenu(CommandSender sender, Player target) {
+    @ArenaCommand(
+            commands = {"duel"},
+            description = "Open the duel arena selector against another player in a best-of series.",
+            permissionNode = "duel",
+            minArgs = 2,
+            maxArgs = 2
+    )
+    public CommandResult duel(CommandSender sender, @Argument(name = "player") Player target, @Argument(name = "rounds") int rounds) {
+        if (!this.isValidRounds(rounds)) {
+            Messages.ARENA_ERROR.send(sender, "Rounds must be an odd number greater than 0.");
+            return CommandResult.COMMAND_ERROR_HANDLED;
+        }
+
+        return this.openMenu(sender, target, rounds);
+    }
+
+    private CommandResult openMenu(CommandSender sender, Player target, int rounds) {
         if (!(sender instanceof Player player)) {
             Messages.MUST_BE_PLAYER.send(sender);
             return CommandResult.COMMAND_ERROR_HANDLED;
@@ -59,8 +75,12 @@ public class DuelCommandExecutor extends BaseCommandExecutor {
             return CommandResult.COMMAND_ERROR_HANDLED;
         }
 
-        this.duelMenuService.openArenaMenu(player, target);
+        this.duelMenuService.openArenaMenu(player, target, rounds);
         return CommandResult.SUCCESS;
+    }
+
+    private boolean isValidRounds(int rounds) {
+        return rounds > 0 && (rounds % 2) == 1;
     }
 
     private static final class StandaloneAdapter implements TabExecutor {

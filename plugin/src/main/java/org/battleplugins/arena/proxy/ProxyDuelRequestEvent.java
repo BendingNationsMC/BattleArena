@@ -25,6 +25,7 @@ public class ProxyDuelRequestEvent extends Event {
     private final List<SerializedPlayer> players;
     private final String mapName;
     private final String originServer;
+    private final int rounds;
 
     public ProxyDuelRequestEvent(Arena arena,
                                  SerializedPlayer requester,
@@ -33,7 +34,8 @@ public class ProxyDuelRequestEvent extends Event {
                                  Collection<UUID> targetParty,
                                  Collection<SerializedPlayer> players,
                                  String mapName,
-                                 String originServer) {
+                                 String originServer,
+                                 int rounds) {
         this.arena = arena;
         this.requester = requester;
         this.target = target;
@@ -42,6 +44,7 @@ public class ProxyDuelRequestEvent extends Event {
         this.players = players == null ? List.of() : List.copyOf(players);
         this.mapName = mapName;
         this.originServer = originServer;
+        this.rounds = Math.max(1, rounds);
     }
 
     public Arena getArena() {
@@ -82,6 +85,10 @@ public class ProxyDuelRequestEvent extends Event {
 
     public String getOriginServer() {
         return this.originServer;
+    }
+
+    public int getRounds() {
+        return this.rounds;
     }
 
     @NotNull

@@ -25,6 +25,12 @@ public final class ResolverKeys {
     public static final ResolverKey<ArenaPlayer> KILLED = register("killed", ArenaPlayer.class);
     public static final ResolverKey<ArenaPlayer> KILLER = register("killer", ArenaPlayer.class);
     public static final ResolverKey<ArenaPlayer> PLAYER = register("player", ArenaPlayer.class);
+    public static final ResolverKey<String> DUEL_REQUESTER = register("duel-requester", String.class);
+    public static final ResolverKey<String> DUEL_TARGET = register("duel-target", String.class);
+    public static final ResolverKey<Integer> DUEL_REQUESTER_WINS = register("duel-requester-wins", Integer.class);
+    public static final ResolverKey<Integer> DUEL_TARGET_WINS = register("duel-target-wins", Integer.class);
+    public static final ResolverKey<Integer> DUEL_WINS_NEEDED = register("duel-wins-needed", Integer.class);
+    public static final ResolverKey<Integer> DUEL_TOTAL_ROUNDS = register("duel-total-rounds", Integer.class);
     public static final ResolverKey<Integer> LIVES_LEFT = register("lives-left", Integer.class);
     public static final ResolverKey<Integer> ONLINE_PLAYERS = register("online-players", Integer.class);
     public static final ResolverKey<CompetitionMap> MAP = register("map", CompetitionMap.class);

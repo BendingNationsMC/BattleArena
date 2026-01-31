@@ -398,10 +398,18 @@ public class Connector {
                 }
 
                 String origin = object.has("origin") ? object.get("origin").getAsString() : null;
+                int rounds = 1;
+                if (object.has("rounds")) {
+                    try {
+                        rounds = object.get("rounds").getAsInt();
+                    } catch (Exception ignored) {
+                    }
+                }
+                int duelRounds = rounds;
 
                     Bukkit.getScheduler().runTask(plugin, () -> {
                         org.bukkit.Bukkit.getPluginManager().callEvent(
-                                new org.battleplugins.arena.proxy.ProxyDuelRequestEvent(arena, requester, target, requesterParty, targetParty, players, duelMapName, origin)
+                                new org.battleplugins.arena.proxy.ProxyDuelRequestEvent(arena, requester, target, requesterParty, targetParty, players, duelMapName, origin, duelRounds)
                         );
                     });
 

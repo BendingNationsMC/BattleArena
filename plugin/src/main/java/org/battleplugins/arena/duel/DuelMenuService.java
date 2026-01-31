@@ -51,6 +51,10 @@ public class DuelMenuService implements Listener {
     }
 
     public void openArenaMenu(Player viewer, @Nullable Player target) {
+        this.openArenaMenu(viewer, target, 1);
+    }
+
+    public void openArenaMenu(Player viewer, @Nullable Player target, int rounds) {
         if (this.config == null) {
             Messages.ARENA_ERROR.send(viewer, "Duel menu not configured.");
             return;
@@ -61,8 +65,9 @@ public class DuelMenuService implements Listener {
             duelTarget = null;
         }
 
+        int duelRounds = Math.max(1, rounds);
         DuelContext context = new DuelContext(viewer.getUniqueId(), duelTarget != null ? duelTarget.getUniqueId() : null,
-                duelTarget != null ? duelTarget.getName() : null);
+                duelTarget != null ? duelTarget.getName() : null, duelRounds);
         DuelMenuConfig.MenuLayout layout = this.config.arenaMenu();
 
         List<Arena> arenas = this.plugin.getArenas().stream()
@@ -256,7 +261,7 @@ public class DuelMenuService implements Listener {
             }
 
             if (rawSlot == mapHolder.backSlot()) {
-                openArenaMenu(player, mapHolder.context().target());
+                openArenaMenu(player, mapHolder.context().target(), mapHolder.context().rounds());
                 return;
             }
 
@@ -316,7 +321,11 @@ public class DuelMenuService implements Listener {
         );
 
         String duelCommand = arena.getName().toLowerCase(Locale.ROOT) + " duel " + target.getName();
-        Bukkit.getScheduler().runTask(this.plugin, () -> initiator.performCommand(duelCommand));
+        if (context.rounds() > 1) {
+            duelCommand += " " + context.rounds();
+        }
+        String commandToRun = duelCommand;
+        Bukkit.getScheduler().runTask(this.plugin, () -> initiator.performCommand(commandToRun));
     }
 
     private interface DuelMenuHolder extends InventoryHolder {
@@ -406,7 +415,7 @@ public class DuelMenuService implements Listener {
         }
     }
 
-    private record DuelContext(UUID viewerId, @Nullable UUID targetId, @Nullable String targetName) {
+    private record DuelContext(UUID viewerId, @Nullable UUID targetId, @Nullable String targetName, int rounds) {
         public @Nullable Player target() {
             return this.targetId == null ? null : Bukkit.getPlayer(this.targetId);
         }

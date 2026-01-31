@@ -7,6 +7,7 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 import org.battleplugins.arena.Arena;
 import org.battleplugins.arena.BattleArena;
+import org.battleplugins.arena.command.Argument;
 import org.battleplugins.arena.command.ArenaCommand;
 import org.battleplugins.arena.command.SubCommandExecutor;
 import org.battleplugins.arena.competition.map.LiveCompetitionMap;
@@ -34,6 +35,20 @@ public class DuelsExecutor implements SubCommandExecutor {
 
     @ArenaCommand(commands = "duel", description = "Duel another player.", permissionNode = "duel")
     public void duel(Player player, Player target) {
+        this.requestDuel(player, target, 1);
+    }
+
+    @ArenaCommand(commands = "duel", description = "Duel another player in a best-of series.", permissionNode = "duel")
+    public void duel(Player player, Player target, @Argument(name = "rounds") int rounds) {
+        if (!this.isValidRounds(rounds)) {
+            DuelsMessages.INVALID_DUEL_ROUNDS.send(player);
+            return;
+        }
+
+        this.requestDuel(player, target, rounds);
+    }
+
+    private void requestDuel(Player player, Player target, int rounds) {
         if (player.equals(target)) {
             DuelsMessages.CANNOT_DUEL_SELF.send(player);
             return;
@@ -109,7 +124,7 @@ public class DuelsExecutor implements SubCommandExecutor {
                 .append(Component.text(" ", NamedTextColor.GRAY))
                 .append(denyButton));
 
-        this.module.addDuelRequest(player, target, preferredMap);
+        this.module.addDuelRequest(player, target, preferredMap, rounds);
     }
 
     @ArenaCommand(commands = "duel", subCommands = "accept", description = "Accept a duel request.", permissionNode = "duel.accept")
@@ -137,10 +152,10 @@ public class DuelsExecutor implements SubCommandExecutor {
         BattleArena plugin = BattleArena.getInstance();
         if (plugin != null) {
             Bukkit.getScheduler().runTask(plugin, () ->
-                    this.module.acceptDuel(this.arena, target, player, request.getRequesterParty(), request.getTargetParty(), request.getPreferredMap())
+                    this.module.acceptDuel(this.arena, target, player, request.getRequesterParty(), request.getTargetParty(), request.getPreferredMap(), request.getRounds())
             );
         } else {
-            this.module.acceptDuel(this.arena, target, player, request.getRequesterParty(), request.getTargetParty(), request.getPreferredMap());
+            this.module.acceptDuel(this.arena, target, player, request.getRequesterParty(), request.getTargetParty(), request.getPreferredMap(), request.getRounds());
         }
     }
     
@@ -198,5 +213,9 @@ public class DuelsExecutor implements SubCommandExecutor {
         }
 
         return true;
+    }
+
+    private boolean isValidRounds(int rounds) {
+        return rounds > 0 && (rounds % 2) == 1;
     }
 }

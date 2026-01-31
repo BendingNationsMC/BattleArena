@@ -1,6 +1,7 @@
 package org.battleplugins.arena;
 
 import org.battleplugins.arena.competition.LiveCompetition;
+import org.battleplugins.arena.duel.DuelSeriesProvider;
 import org.battleplugins.arena.competition.PlayerRole;
 import org.battleplugins.arena.competition.PlayerStorage;
 import org.battleplugins.arena.event.player.ArenaStatChangeEvent;
@@ -297,10 +298,30 @@ public class ArenaPlayer implements StatHolder, Resolvable {
             builder.define(ResolverKeys.TEAM, ResolverProvider.simple(this.team, ArenaTeam::getName, ArenaTeam::getFormattedName));
         }
 
-        for (Map.Entry<ArenaStat<?>, Object> entry : this.stats.entrySet()) {
+        for (Map.Entry<ArenaStat<?>, Object> entry : this.stats.entrySet()) {   
             ResolverKey<Object> statKey = ResolverKey.create("stat_" + entry.getKey().getKey(), Object.class);
             builder.define(statKey, ResolverProvider.simple(entry.getValue(), String::valueOf));
         }
+
+        this.arena.getPlugin().module("duels").ifPresent(container -> {
+            Object mainClass = container.mainClass();
+            if (mainClass instanceof DuelSeriesProvider provider) {
+                provider.getSeriesSnapshot(this.competition).ifPresent(snapshot -> {
+                    builder.define(ResolverKeys.DUEL_REQUESTER,
+                            ResolverProvider.simple(snapshot.requesterName(), String::valueOf));
+                    builder.define(ResolverKeys.DUEL_TARGET,
+                            ResolverProvider.simple(snapshot.targetName(), String::valueOf));
+                    builder.define(ResolverKeys.DUEL_REQUESTER_WINS,
+                            ResolverProvider.simple(snapshot.requesterWins(), String::valueOf));
+                    builder.define(ResolverKeys.DUEL_TARGET_WINS,
+                            ResolverProvider.simple(snapshot.targetWins(), String::valueOf));
+                    builder.define(ResolverKeys.DUEL_WINS_NEEDED,
+                            ResolverProvider.simple(snapshot.winsNeeded(), String::valueOf));
+                    builder.define(ResolverKeys.DUEL_TOTAL_ROUNDS,
+                            ResolverProvider.simple(snapshot.totalRounds(), String::valueOf));
+                });
+            }
+        });
 
         return builder.build();
     }

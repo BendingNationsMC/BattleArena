@@ -397,6 +397,7 @@ public class BaseCommandExecutor implements TabExecutor {
 
     private List<CommandWrapper> getCommandWrappers(String command, String subCommand) {
         List<CommandWrapper> wrappers = new ArrayList<>();
+        List<CommandWrapper> subCommandMatches = new ArrayList<>();
 
         for (String cmd : this.commandWrappers.keySet()) {
             for (CommandWrapper wrapper : this.commandWrappers.get(cmd)) {
@@ -406,13 +407,18 @@ public class BaseCommandExecutor implements TabExecutor {
                     continue;
                 }
 
-                if (Arrays.asList(arenaCommand.subCommands()).isEmpty() || Arrays.asList(arenaCommand.subCommands()).contains(subCommand)) {
+                List<String> subCommands = Arrays.asList(arenaCommand.subCommands());
+                boolean matchesSubCommand = subCommand != null
+                        && subCommands.stream().anyMatch(cmdName -> cmdName.equalsIgnoreCase(subCommand));
+                if (!subCommands.isEmpty() && matchesSubCommand) {
+                    subCommandMatches.add(wrapper);
+                } else if (subCommands.isEmpty()) {
                     wrappers.add(wrapper);
                 }
             }
         }
 
-        return wrappers;
+        return subCommandMatches.isEmpty() ? wrappers : subCommandMatches;
     }
 
     private Object verifyArgument(CommandSender sender, String arg, Class<?> parameter) {

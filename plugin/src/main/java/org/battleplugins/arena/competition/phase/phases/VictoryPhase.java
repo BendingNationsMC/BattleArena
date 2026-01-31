@@ -74,4 +74,11 @@ public class VictoryPhase<T extends LiveCompetition<T>> extends LiveCompetitionP
     public void onComplete() {
         this.durationTask = null;
     }
+
+    public void cancelDurationTask() {
+        if (this.durationTask != null) {
+            this.durationTask.cancel();
+            this.durationTask = null;
+        }
+    }
 }
