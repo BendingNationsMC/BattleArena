@@ -453,8 +453,8 @@ public class Duels implements ArenaModuleInitializer, DuelSeriesProvider {
                 deadPlayer.getRole()
         );
 
-        if (snapshot.aliveTeams <= 1 && snapshot.alivePlayers <= 1) {
-            this.ensureSeriesVictory(event.getArena(), liveCompetition);
+        if (snapshot.aliveTeams <= 1) {
+            this.ensureSeriesVictory(event.getArena(), liveCompetition);    
         }
     }
 
@@ -1213,6 +1213,8 @@ public class Duels implements ArenaModuleInitializer, DuelSeriesProvider {
             double maxHealth = Math.max(1.0D, player.getMaxHealth());
             player.setHealth(maxHealth);
             player.setFireTicks(0);
+            player.setFlying(false);
+            player.setAllowFlight(false);
         }, 5L);
     }
 
